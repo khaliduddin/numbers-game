@@ -24,18 +24,21 @@ const MainMenu = ({
           detail: { view: "game", mode: "solo" },
         });
         window.dispatchEvent(soloEvent);
+        console.log("Dispatched solo game event");
         break;
       case "duel":
         const duelEvent = new CustomEvent("changeView", {
           detail: { view: "game", mode: "1v1" },
         });
         window.dispatchEvent(duelEvent);
+        console.log("Dispatched duel game event");
         break;
       case "tournament":
         const tournamentEvent = new CustomEvent("changeView", {
           detail: { view: "tournament" },
         });
         window.dispatchEvent(tournamentEvent);
+        console.log("Dispatched tournament event");
         break;
       default:
         break;

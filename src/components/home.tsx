@@ -24,7 +24,7 @@ const Home = () => {
     console.log("View change event received:", view, mode);
     setCurrentView(view);
     if (mode) {
-      setGameMode(mode);
+      setGameMode(mode as "solo" | "1v1" | "tournament");
     }
   }, []);
 
@@ -47,6 +47,14 @@ const Home = () => {
     window.addEventListener("changeView", eventListener);
 
     console.log("Event listener for changeView added");
+
+    // For debugging
+    window.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.textContent?.includes("Play Now")) {
+        console.log("Play Now button clicked");
+      }
+    });
 
     return () => {
       window.removeEventListener("changeView", eventListener);
