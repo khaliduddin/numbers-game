@@ -96,14 +96,33 @@ const Home = () => {
   const handleWalletConnect = (walletAddress: string) => {
     // Simulate wallet connection
     console.log("Wallet connected:", walletAddress);
-    setIsWalletConnected(true);
 
-    // Update localStorage
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      user.walletAddress = walletAddress;
-      localStorage.setItem("user", JSON.stringify(user));
+    if (walletAddress) {
+      setIsWalletConnected(true);
+
+      // If user is on auth screen, take them to main menu after wallet connection
+      if (currentView === "auth") {
+        setCurrentView("main");
+      }
+
+      // Update localStorage
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        user.walletAddress = walletAddress;
+        localStorage.setItem("user", JSON.stringify(user));
+      } else {
+        // Create a new user entry if none exists
+        const newUser = {
+          username: "Wallet User",
+          walletAddress: walletAddress,
+        };
+        localStorage.setItem("user", JSON.stringify(newUser));
+        setUsername("Wallet User");
+        setIsAuthenticated(true);
+      }
+    } else {
+      setIsWalletConnected(false);
     }
   };
 
