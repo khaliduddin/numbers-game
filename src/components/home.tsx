@@ -21,6 +21,7 @@ const Home = () => {
   // Handle view changes from custom events
   const handleViewChange = useCallback((event: CustomEvent) => {
     const { view, mode } = event.detail;
+    console.log("View change event received:", view, mode);
     setCurrentView(view);
     if (mode) {
       setGameMode(mode);
@@ -42,13 +43,14 @@ const Home = () => {
     }
 
     // Add event listener for view changes
-    window.addEventListener("changeView", handleViewChange as EventListener);
+    const eventListener = handleViewChange as EventListener;
+    window.addEventListener("changeView", eventListener);
+
+    console.log("Event listener for changeView added");
 
     return () => {
-      window.removeEventListener(
-        "changeView",
-        handleViewChange as EventListener,
-      );
+      window.removeEventListener("changeView", eventListener);
+      console.log("Event listener for changeView removed");
     };
   }, [handleViewChange]);
 

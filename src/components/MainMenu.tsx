@@ -19,24 +19,23 @@ const MainMenu = ({
     // Instead of navigating to routes, we'll update the state in the parent component
     switch (mode) {
       case "solo":
-        // Use state management instead of navigation
-        window.dispatchEvent(
-          new CustomEvent("changeView", {
-            detail: { view: "game", mode: "solo" },
-          }),
-        );
+        // Use custom event to communicate with parent component
+        const soloEvent = new CustomEvent("changeView", {
+          detail: { view: "game", mode: "solo" },
+        });
+        window.dispatchEvent(soloEvent);
         break;
       case "duel":
-        window.dispatchEvent(
-          new CustomEvent("changeView", {
-            detail: { view: "game", mode: "1v1" },
-          }),
-        );
+        const duelEvent = new CustomEvent("changeView", {
+          detail: { view: "game", mode: "1v1" },
+        });
+        window.dispatchEvent(duelEvent);
         break;
       case "tournament":
-        window.dispatchEvent(
-          new CustomEvent("changeView", { detail: { view: "tournament" } }),
-        );
+        const tournamentEvent = new CustomEvent("changeView", {
+          detail: { view: "tournament" },
+        });
+        window.dispatchEvent(tournamentEvent);
         break;
       default:
         break;
@@ -59,13 +58,12 @@ const MainMenu = ({
           <div className="flex gap-2 sm:gap-4 w-full sm:w-auto justify-center sm:justify-end">
             <Button
               variant="outline"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("changeView", {
-                    detail: { view: "profile" },
-                  }),
-                )
-              }
+              onClick={() => {
+                const event = new CustomEvent("changeView", {
+                  detail: { view: "profile" },
+                });
+                window.dispatchEvent(event);
+              }}
               className="flex items-center gap-1 sm:gap-2"
               size="sm"
             >
@@ -75,13 +73,12 @@ const MainMenu = ({
             </Button>
             <Button
               variant="outline"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("changeView", {
-                    detail: { view: "leaderboard" },
-                  }),
-                )
-              }
+              onClick={() => {
+                const event = new CustomEvent("changeView", {
+                  detail: { view: "leaderboard" },
+                });
+                window.dispatchEvent(event);
+              }}
               className="flex items-center gap-1 sm:gap-2"
               size="sm"
             >
@@ -125,13 +122,12 @@ const MainMenu = ({
             <h2 className="text-xl font-semibold">Your Stats</h2>
             <Button
               variant="ghost"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("changeView", {
-                    detail: { view: "profile" },
-                  }),
-                )
-              }
+              onClick={() => {
+                const event = new CustomEvent("changeView", {
+                  detail: { view: "profile" },
+                });
+                window.dispatchEvent(event);
+              }}
               size="sm"
             >
               View Details
@@ -159,13 +155,12 @@ const MainMenu = ({
             <h2 className="text-xl font-semibold">Upcoming Tournaments</h2>
             <Button
               variant="ghost"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("changeView", {
-                    detail: { view: "tournament" },
-                  }),
-                )
-              }
+              onClick={() => {
+                const event = new CustomEvent("changeView", {
+                  detail: { view: "tournament" },
+                });
+                window.dispatchEvent(event);
+              }}
               size="sm"
             >
               View All
