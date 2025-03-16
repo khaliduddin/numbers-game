@@ -60,7 +60,7 @@ const NumberDisplay = ({
         className={`font-mono ${sizeClasses[size]} text-white tracking-wider font-bold flex justify-center items-center min-h-16 sm:min-h-20 md:min-h-24`}
         aria-live="polite"
       >
-        {displayNumber || (isRevealed ? number : "?".repeat(number.length))}
+        {displayNumber}
       </div>
       <p className="mt-2 sm:mt-4 text-slate-400 text-xs sm:text-sm text-center">
         Add all digits together repeatedly until you get a single digit

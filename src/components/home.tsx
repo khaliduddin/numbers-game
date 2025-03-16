@@ -44,12 +44,12 @@ const Home = () => {
 
     // Add event listener for view changes
     const eventListener = handleViewChange as EventListener;
-    window.addEventListener("changeView", eventListener);
+    document.addEventListener("changeView", eventListener);
 
     console.log("Event listener for changeView added");
 
     // For debugging
-    window.addEventListener("click", (e) => {
+    document.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
       if (target.textContent?.includes("Play Now")) {
         console.log("Play Now button clicked");
@@ -57,7 +57,7 @@ const Home = () => {
     });
 
     return () => {
-      window.removeEventListener("changeView", eventListener);
+      document.removeEventListener("changeView", eventListener);
       console.log("Event listener for changeView removed");
     };
   }, [handleViewChange]);

@@ -32,6 +32,15 @@ interface ResultsScreenProps {
   onPlayAgain?: () => void;
   onReturnHome?: () => void;
   onViewLeaderboard?: () => void;
+  roundDetails?: Array<{
+    round: number;
+    number: string;
+    answer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+    timeTaken: number;
+    score: number;
+  }>;
 }
 
 const ResultsScreen: React.FC<ResultsScreenProps> = ({
@@ -45,6 +54,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
   onPlayAgain = () => {},
   onReturnHome = () => {},
   onViewLeaderboard = () => {},
+  roundDetails = [],
 }) => {
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
 
@@ -145,6 +155,68 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
                 )}
               </div>
             </motion.div>
+
+            {/* Round Details Section */}
+            <div className="mt-6 border-t pt-4">
+              <h3 className="text-lg font-semibold mb-3">Round Details</h3>
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Round</th>
+                      <th className="px-2 py-1 text-left">Number</th>
+                      <th className="px-2 py-1 text-left">Answer</th>
+                      <th className="px-2 py-1 text-left">Time</th>
+                      <th className="px-2 py-1 text-right">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {roundDetails?.map((detail, index) => (
+                      <tr
+                        key={index}
+                        className={
+                          detail.isCorrect ? "bg-green-50" : "bg-red-50"
+                        }
+                      >
+                        <td className="px-2 py-1">{detail.round}</td>
+                        <td className="px-2 py-1">{detail.number}</td>
+                        <td className="px-2 py-1">
+                          {detail.answer === "skipped" ? (
+                            <span className="text-gray-500">Skipped</span>
+                          ) : (
+                            <span
+                              className={
+                                detail.isCorrect
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {detail.answer}{" "}
+                              {!detail.isCorrect && `(${detail.correctAnswer})`}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1">
+                          {detail.timeTaken.toFixed(1)}s
+                        </td>
+                        <td className="px-2 py-1 text-right font-medium">
+                          <span
+                            className={
+                              detail.score > 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }
+                          >
+                            {detail.score > 0 ? "+" : ""}
+                            {detail.score}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             {isWinner && (
               <motion.div

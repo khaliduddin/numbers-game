@@ -32,13 +32,25 @@ const GameContainer: React.FC<GameContainerProps> = ({
   const [accuracy, setAccuracy] = useState<number>(0);
   const [totalTime, setTotalTime] = useState<number>(0);
   const [correctAnswers, setCorrectAnswers] = useState<number>(0);
+  const [roundDetails, setRoundDetails] = useState<
+    Array<{
+      round: number;
+      number: string;
+      answer: string;
+      correctAnswer: string;
+      isCorrect: boolean;
+      timeTaken: number;
+      score: number;
+    }>
+  >([]);
 
-  // Generate a random multi-digit number
+  // Generate a random multi-digit number (only digits 1-9, no zeros)
   const generateRandomNumber = () => {
     const length = Math.floor(Math.random() * 3) + 3; // 3-5 digits
     let number = "";
     for (let i = 0; i < length; i++) {
-      number += Math.floor(Math.random() * 10);
+      // Generate digits 1-9 only (no zeros)
+      number += (Math.floor(Math.random() * 9) + 1).toString();
     }
     return number;
   };
@@ -61,29 +73,56 @@ const GameContainer: React.FC<GameContainerProps> = ({
   const handleAnswerSubmit = (answer: string) => {
     const correctAnswer = calculateDigitalRoot(currentNumber).toString();
     const isCorrect = answer === correctAnswer;
+    const timeUsed = timePerRound - timeRemaining;
 
-    // Update stats
+    // Calculate score based on new rules
+    let roundScore = 0;
     if (isCorrect) {
-      const timeUsed = timePerRound - timeRemaining;
-      const roundScore = Math.max(100 - timeUsed * 5, 10); // Score decreases with time
-      setPlayerScore((prev) => prev + roundScore);
+      roundScore = 10; // 10 points for correct answer
       setCorrectAnswers((prev) => prev + 1);
       setTotalTime((prev) => prev + timeUsed);
+    } else {
+      // Check if answer is empty
+      if (answer === "") {
+        roundScore = -1; // -1 points for empty/no answer (same as skip)
+      } else {
+        roundScore = -5; // -5 points for wrong answer
+      }
     }
+
+    // Update player score
+    setPlayerScore((prev) => prev + roundScore);
+
+    // Save round details
+    setRoundDetails((prev) => [
+      ...prev,
+      {
+        round: currentRound,
+        number: currentNumber,
+        answer: answer,
+        correctAnswer: correctAnswer,
+        isCorrect: isCorrect,
+        timeTaken: timeUsed,
+        score: roundScore,
+      },
+    ]);
 
     // In multiplayer modes, simulate opponent scoring
     if (gameMode !== "solo") {
       const opponentCorrect = Math.random() > 0.3; // 70% chance opponent is correct
       if (opponentCorrect) {
         const opponentTimeUsed = Math.random() * (timePerRound - 1) + 1; // Random time between 1-9 seconds
-        const opponentRoundScore = Math.max(100 - opponentTimeUsed * 5, 10);
+        const opponentRoundScore = 10; // Same scoring rules for opponent
         setOpponentScore((prev) => prev + opponentRoundScore);
+      } else {
+        setOpponentScore((prev) => prev - 1); // Opponent gets wrong answer (-1 point)
       }
     }
 
     // Move to next round or end game
     if (currentRound < totalRounds) {
       setRoundBreak(true);
+      setTimeRemaining(5); // Set fixed 5 second break timer
       setTimeout(() => {
         setCurrentRound((prev) => prev + 1);
         startNewRound();
@@ -101,9 +140,31 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Handle skipping a question
   const handleSkip = () => {
+    const correctAnswer = calculateDigitalRoot(currentNumber).toString();
+    const timeUsed = timePerRound - timeRemaining;
+    const skipPenalty = -1; // -1 point for skipping
+
+    // Update player score with skip penalty
+    setPlayerScore((prev) => prev + skipPenalty);
+
+    // Save round details for the skipped question
+    setRoundDetails((prev) => [
+      ...prev,
+      {
+        round: currentRound,
+        number: currentNumber,
+        answer: "skipped",
+        correctAnswer: correctAnswer,
+        isCorrect: false,
+        timeTaken: timeUsed,
+        score: skipPenalty,
+      },
+    ]);
+
     // Move to next round with no points
     if (currentRound < totalRounds) {
       setRoundBreak(true);
+      setTimeRemaining(5); // Set fixed 5 second break timer
       setTimeout(() => {
         setCurrentRound((prev) => prev + 1);
         startNewRound();
@@ -121,16 +182,27 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Timer effect
   useEffect(() => {
-    if (!gameActive || roundBreak) return;
+    if (!gameActive) return;
 
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSkip(); // Auto-skip when time runs out
-          return 0;
+        if (roundBreak) {
+          // Count down the break timer
+          if (prev <= 1) {
+            // This shouldn't happen as we handle round transitions in timeouts,
+            // but just in case
+            return 0;
+          }
+          return prev - 1;
+        } else {
+          // Normal gameplay timer
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleSkip(); // Auto-skip when time runs out
+            return 0;
+          }
+          return prev - 1;
         }
-        return prev - 1;
       });
     }, 1000);
 
@@ -150,16 +222,18 @@ const GameContainer: React.FC<GameContainerProps> = ({
         accuracy={accuracy}
         averageTime={correctAnswers > 0 ? totalTime / correctAnswers : 0}
         isWinner={
-          gameMode === "solo" ? playerScore > 500 : playerScore > opponentScore
+          gameMode === "solo" ? playerScore > 0 : playerScore > opponentScore
         }
         gameMode={gameMode}
         opponentScore={opponentScore}
+        roundDetails={roundDetails}
         onPlayAgain={() => {
           setCurrentRound(1);
           setPlayerScore(0);
           setOpponentScore(0);
           setCorrectAnswers(0);
           setTotalTime(0);
+          setRoundDetails([]);
           setGameActive(true);
           setShowResults(false);
           startNewRound();

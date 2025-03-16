@@ -22,22 +22,28 @@ const MainMenu = ({
         // Use custom event to communicate with parent component
         const soloEvent = new CustomEvent("changeView", {
           detail: { view: "game", mode: "solo" },
+          bubbles: true,
+          cancelable: true,
         });
-        window.dispatchEvent(soloEvent);
+        document.dispatchEvent(soloEvent);
         console.log("Dispatched solo game event");
         break;
       case "duel":
         const duelEvent = new CustomEvent("changeView", {
           detail: { view: "game", mode: "1v1" },
+          bubbles: true,
+          cancelable: true,
         });
-        window.dispatchEvent(duelEvent);
+        document.dispatchEvent(duelEvent);
         console.log("Dispatched duel game event");
         break;
       case "tournament":
         const tournamentEvent = new CustomEvent("changeView", {
           detail: { view: "tournament" },
+          bubbles: true,
+          cancelable: true,
         });
-        window.dispatchEvent(tournamentEvent);
+        document.dispatchEvent(tournamentEvent);
         console.log("Dispatched tournament event");
         break;
       default:
@@ -64,8 +70,10 @@ const MainMenu = ({
               onClick={() => {
                 const event = new CustomEvent("changeView", {
                   detail: { view: "profile" },
+                  bubbles: true,
+                  cancelable: true,
                 });
-                window.dispatchEvent(event);
+                document.dispatchEvent(event);
               }}
               className="flex items-center gap-1 sm:gap-2"
               size="sm"
@@ -79,8 +87,10 @@ const MainMenu = ({
               onClick={() => {
                 const event = new CustomEvent("changeView", {
                   detail: { view: "leaderboard" },
+                  bubbles: true,
+                  cancelable: true,
                 });
-                window.dispatchEvent(event);
+                document.dispatchEvent(event);
               }}
               className="flex items-center gap-1 sm:gap-2"
               size="sm"
@@ -128,8 +138,10 @@ const MainMenu = ({
               onClick={() => {
                 const event = new CustomEvent("changeView", {
                   detail: { view: "profile" },
+                  bubbles: true,
+                  cancelable: true,
                 });
-                window.dispatchEvent(event);
+                document.dispatchEvent(event);
               }}
               size="sm"
             >
@@ -161,8 +173,10 @@ const MainMenu = ({
               onClick={() => {
                 const event = new CustomEvent("changeView", {
                   detail: { view: "tournament" },
+                  bubbles: true,
+                  cancelable: true,
                 });
-                window.dispatchEvent(event);
+                document.dispatchEvent(event);
               }}
               size="sm"
             >
