@@ -134,14 +134,24 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
                 <div className="flex justify-between p-3 rounded-lg bg-green-50 border border-green-100">
                   <span className="text-gray-700">Accuracy</span>
                   <span className="font-semibold text-green-600">
-                    {accuracy}%
+                    {accuracy.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="flex justify-between p-3 rounded-lg bg-purple-50 border border-purple-100">
                   <span className="text-gray-700">Avg. Response Time</span>
                   <span className="font-semibold text-purple-600">
-                    {averageTime}s
+                    {averageTime.toFixed(1)}s
+                  </span>
+                </div>
+
+                <div className="flex justify-between p-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <span className="text-gray-700">Total Time</span>
+                  <span className="font-semibold text-blue-600">
+                    {roundDetails
+                      .reduce((total, round) => total + round.timeTaken, 0)
+                      .toFixed(1)}
+                    s
                   </span>
                 </div>
 

@@ -31,21 +31,25 @@ const NumberDisplay = ({
 
     if (isAnimated) {
       setDisplayNumber("");
+      let intervalId: NodeJS.Timeout | undefined;
+
       const timer = setTimeout(() => {
         let currentIndex = 0;
-        const intervalId = setInterval(() => {
+        intervalId = setInterval(() => {
           if (currentIndex < number.length) {
-            setDisplayNumber((prev) => prev + number[currentIndex]);
+            setDisplayNumber((prev) => prev + (number[currentIndex] || ""));
             currentIndex++;
           } else {
-            clearInterval(intervalId);
+            if (intervalId) clearInterval(intervalId);
           }
         }, 200); // Reveal each digit with a 200ms delay
-
-        return () => clearInterval(intervalId);
       }, 500); // Start after a 500ms delay
 
-      return () => clearTimeout(timer);
+      // Return the cleanup function for both timers
+      return () => {
+        clearTimeout(timer);
+        if (intervalId) clearInterval(intervalId);
+      };
     } else {
       setDisplayNumber(number);
     }

@@ -129,7 +129,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
       }, 5000); // 5 second break between rounds
     } else {
       // End game and show results
-      const finalAccuracy = (correctAnswers / totalRounds) * 100;
+      const finalAccuracy = (correctAnswers / currentRound) * 100;
       const avgTime = correctAnswers > 0 ? totalTime / correctAnswers : 0;
       setAccuracy(finalAccuracy);
       setGameActive(false);
@@ -171,7 +171,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
       }, 5000);
     } else {
       // End game
-      const finalAccuracy = (correctAnswers / totalRounds) * 100;
+      const finalAccuracy = (correctAnswers / currentRound) * 100;
       const avgTime = correctAnswers > 0 ? totalTime / correctAnswers : 0;
       setAccuracy(finalAccuracy);
       setGameActive(false);
