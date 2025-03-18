@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import AuthContainer from "./auth/AuthContainer";
 import MainMenu from "./MainMenu";
 import GameContainer from "./game/GameContainer";
+import DuelSetupScreen from "./game/DuelSetupScreen";
 import ProfileView from "./profile/ProfileView";
 import LeaderboardView from "./leaderboard/LeaderboardView";
 import TournamentLobby from "./tournament/TournamentLobby";
@@ -142,11 +143,18 @@ const Home = () => {
     localStorage.removeItem("user");
   };
 
+  const [duelSetupActive, setDuelSetupActive] = useState(false);
+  const [customRounds, setCustomRounds] = useState(10);
+
   const handleGameModeSelect = (mode: "solo" | "1v1" | "tournament") => {
     setGameMode(mode);
     if (mode === "tournament") {
       setCurrentView("tournament");
+    } else if (mode === "1v1") {
+      setDuelSetupActive(true);
+      setCurrentView("game");
     } else {
+      setDuelSetupActive(false);
       setCurrentView("game");
     }
   };
@@ -217,11 +225,32 @@ const Home = () => {
                   Return to Menu
                 </button>
               </div>
-              <GameContainer
-                gameMode={gameMode}
-                onGameComplete={handleGameComplete}
-                onExit={() => setCurrentView("main")}
-              />
+              {gameMode === "1v1" && duelSetupActive ? (
+                <div className="w-full">
+                  <DuelSetupScreen
+                    onJoinGame={() => {
+                      setDuelSetupActive(false);
+                      // Here we would normally connect to a matchmaking service
+                      console.log("Joining existing game");
+                    }}
+                    onCreateGame={(rounds, isPrivate, friendAddress) => {
+                      setDuelSetupActive(false);
+                      setCustomRounds(rounds);
+                      console.log(
+                        `Creating new ${isPrivate ? "private" : "public"} game with ${rounds} rounds${friendAddress ? ` and inviting ${friendAddress}` : ""}`,
+                      );
+                    }}
+                    onCancel={() => setCurrentView("main")}
+                  />
+                </div>
+              ) : (
+                <GameContainer
+                  gameMode={gameMode}
+                  totalRounds={gameMode === "1v1" ? customRounds : 10}
+                  onGameComplete={handleGameComplete}
+                  onExit={() => setCurrentView("main")}
+                />
+              )}
             </div>
           </motion.div>
         );

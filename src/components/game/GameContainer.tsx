@@ -161,6 +161,21 @@ const GameContainer: React.FC<GameContainerProps> = ({
       },
     ]);
 
+    // In multiplayer modes, simulate opponent scoring independently
+    // (Skip only affects the current player, not the opponent)
+    if (gameMode !== "solo") {
+      // Opponent still gets a chance to answer
+      const opponentCorrect = Math.random() > 0.3; // 70% chance opponent is correct
+      if (opponentCorrect) {
+        const opponentTimeUsed = Math.random() * (timePerRound - 1) + 1; // Random time between 1-9 seconds
+        const opponentRoundScore = 10; // Same scoring rules for opponent
+        setOpponentScore((prev) => prev + opponentRoundScore);
+      } else {
+        // Opponent gets their own answer wrong
+        setOpponentScore((prev) => prev - 5); // Opponent gets wrong answer (-5 points)
+      }
+    }
+
     // Move to next round with no points
     if (currentRound < totalRounds) {
       setRoundBreak(true);
