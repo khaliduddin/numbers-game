@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { ArrowRight, RefreshCw } from "lucide-react";
+import { Toggle } from "../ui/toggle";
 
 interface GameControlsProps {
   onSubmit?: (answer: string) => void;
@@ -22,22 +22,26 @@ const GameControls = ({
   roundNumber = 1,
   totalRounds = 10,
 }: GameControlsProps) => {
-  const [answer, setAnswer] = useState<string>("");
+  const [selectedNumber, setSelectedNumber] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Reset answer when round changes
   useEffect(() => {
-    setAnswer("");
+    setSelectedNumber("");
     setIsSubmitting(false);
   }, [roundNumber]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!answer.trim() || isDisabled || isSubmitting) return;
+    if (!selectedNumber || isDisabled || isSubmitting) return;
 
     setIsSubmitting(true);
-    onSubmit(answer);
+    onSubmit(selectedNumber);
     // Form will be reset by the roundNumber useEffect when it changes
+  };
+
+  const handleNumberToggle = (number: string) => {
+    setSelectedNumber((prev) => (prev === number ? "" : number));
   };
 
   return (
@@ -58,20 +62,26 @@ const GameControls = ({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-        <div className="flex gap-1 sm:gap-2">
-          <Input
-            type="number"
-            placeholder="Enter your answer..."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={isDisabled || isSubmitting}
-            className="flex-1 text-base sm:text-lg font-medium h-9 sm:h-10"
-            autoFocus
-          />
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
+            <Toggle
+              key={number}
+              pressed={selectedNumber === number.toString()}
+              onPressedChange={() => handleNumberToggle(number.toString())}
+              disabled={isDisabled || isSubmitting}
+              className={`h-12 w-12 sm:h-14 sm:w-14 text-lg sm:text-xl font-bold ${selectedNumber === number.toString() ? "bg-primary text-primary-foreground" : ""}`}
+              aria-label={`Select number ${number}`}
+            >
+              {number}
+            </Toggle>
+          ))}
+        </div>
+
+        <div className="flex justify-center gap-4">
           <Button
             type="submit"
-            disabled={isDisabled || isSubmitting || !answer.trim()}
-            className="w-20 sm:w-24 h-9 sm:h-10 text-xs sm:text-sm"
+            disabled={isDisabled || isSubmitting || !selectedNumber}
+            className="w-28 sm:w-32 h-9 sm:h-10 text-xs sm:text-sm"
           >
             {isSubmitting ? (
               <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
@@ -82,15 +92,13 @@ const GameControls = ({
               </>
             )}
           </Button>
-        </div>
 
-        <div className="flex justify-center">
           <Button
             type="button"
             variant="outline"
             onClick={onSkip}
             disabled={isDisabled || isSubmitting}
-            className="w-24 sm:w-32 h-8 sm:h-10 text-xs sm:text-sm"
+            className="w-24 sm:w-32 h-9 sm:h-10 text-xs sm:text-sm"
           >
             Skip
           </Button>
