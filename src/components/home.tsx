@@ -26,6 +26,12 @@ const Home = () => {
     setCurrentView(view);
     if (mode) {
       setGameMode(mode as "solo" | "1v1" | "tournament");
+      // Set duelSetupActive to true when 1v1 mode is selected
+      if (mode === "1v1") {
+        setDuelSetupActive(true);
+      } else {
+        setDuelSetupActive(false);
+      }
     }
   }, []);
 
