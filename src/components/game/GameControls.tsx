@@ -69,7 +69,7 @@ const GameControls = ({
               pressed={selectedNumber === number.toString()}
               onPressedChange={() => handleNumberToggle(number.toString())}
               disabled={isDisabled || isSubmitting}
-              className={`h-12 w-12 sm:h-14 sm:w-14 text-lg sm:text-xl font-bold ${selectedNumber === number.toString() ? "bg-primary text-primary-foreground" : ""}`}
+              className={`h-12 w-12 sm:h-14 sm:w-14 text-lg sm:text-xl font-bold ${selectedNumber === number.toString() ? "bg-primary text-primary-foreground hover:bg-primary/80" : "hover:bg-gray-300"} data-[state=on]:bg-primary data-[state=on]:text-primary-foreground`}
               aria-label={`Select number ${number}`}
             >
               {number}

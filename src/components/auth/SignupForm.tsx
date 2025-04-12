@@ -14,6 +14,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { authService } from "@/services/authService";
 
 const signupSchema = z
   .object({
@@ -46,6 +47,8 @@ const SignupForm = ({
 }: SignupFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -57,8 +60,26 @@ const SignupForm = ({
     },
   });
 
-  const handleSubmit = (values: SignupFormValues) => {
-    onSubmit(values);
+  const handleSubmit = async (values: SignupFormValues) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Register the user with Supabase
+      await authService.signup({
+        email: values.email,
+        password: values.password,
+        username: values.username,
+      });
+
+      // Call the onSubmit prop with the form values
+      onSubmit(values);
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err instanceof Error ? err.message : "Failed to create account");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -180,8 +201,10 @@ const SignupForm = ({
             )}
           />
 
-          <Button type="submit" className="w-full">
-            Sign Up
+          {error && <div className="text-sm text-red-500 mb-4">{error}</div>}
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Creating Account..." : "Sign Up"}
           </Button>
 
           <div className="text-center mt-4">
