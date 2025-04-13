@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,9 +50,20 @@ const LoginForm = ({
   const handleSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
+      // Use Supabase authentication directly
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
       await onSubmit(values);
     } catch (error) {
       console.error("Login error:", error);
+      // You could add error handling here, e.g. showing an error message
     } finally {
       setIsLoading(false);
     }

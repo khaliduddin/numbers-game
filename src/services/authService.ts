@@ -23,10 +23,16 @@ export const authService = {
    * Sign up a new user with email and password
    */
   async signup({ email, password, username }: SignupData): Promise<AuthUser> {
-    // Register the user with Supabase auth
+    // Register the user with Supabase auth with additional metadata
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username,
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+        },
+      },
     });
 
     if (signUpError) {
@@ -37,36 +43,16 @@ export const authService = {
       throw new Error("Failed to create user");
     }
 
-    // Create a profile record in the profiles table
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .insert([
-        {
-          id: authData.user.id,
-          username,
-          email,
-          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-          join_date: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
-      // If profile creation fails, we should ideally delete the auth user
-      // but Supabase doesn't expose a delete user API for client-side
-      throw new Error(
-        `Failed to create profile: ${profileError.message || "Database error"}`,
-      );
-    }
+    // We don't need to manually create a profile record anymore
+    // The database trigger will handle this automatically based on the auth.users record
+    // Just return the user data
 
     return {
       id: authData.user.id,
       email: authData.user.email || email,
-      username: profileData?.username,
-      avatarUrl: profileData?.avatar_url,
-      joinDate: profileData?.join_date,
+      username: username,
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+      joinDate: new Date().toISOString(),
     };
   },
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import AuthContainer from "./auth/AuthContainer";
 import MainMenu from "./MainMenu";
@@ -35,19 +36,54 @@ const Home = () => {
     }
   }, []);
 
-  // Simulate checking if user is already logged in
+  // Check if user is already logged in with Supabase
   useEffect(() => {
-    // For demo purposes, we'll just check localStorage
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setIsAuthenticated(true);
-      setUsername(user.username);
-      setCurrentView("main");
-      if (user.walletAddress) {
-        setIsWalletConnected(true);
+    const checkAuthStatus = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Error checking auth status:", error);
+        return;
       }
-    }
+
+      if (data.session) {
+        // User is authenticated
+        const { data: userData } = await supabase.auth.getUser();
+
+        if (userData.user) {
+          // Get profile data
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", userData.user.id)
+            .single();
+
+          setIsAuthenticated(true);
+          setUsername(
+            profileData?.username || userData.user.email?.split("@")[0] || "",
+          );
+          setCurrentView("main");
+
+          if (profileData?.wallet_address) {
+            setIsWalletConnected(true);
+          }
+        }
+      } else {
+        // Check localStorage as fallback
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          setIsAuthenticated(true);
+          setUsername(user.username);
+          setCurrentView("main");
+          if (user.walletAddress) {
+            setIsWalletConnected(true);
+          }
+        }
+      }
+    };
+
+    checkAuthStatus();
 
     // Add event listener for view changes
     const eventListener = handleViewChange as EventListener;
@@ -69,21 +105,44 @@ const Home = () => {
     };
   }, [handleViewChange]);
 
-  const handleLogin = (values: { email: string; password: string }) => {
-    // Simulate login
-    console.log("Login with:", values);
-    setIsAuthenticated(true);
-    setUsername(values.email.split("@")[0]); // Use part of email as username for demo
-    setCurrentView("main");
+  const handleLogin = async (values: { email: string; password: string }) => {
+    try {
+      // Get user data from Supabase
+      const { data, error } = await supabase.auth.getUser();
 
-    // Save to localStorage for demo persistence
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        username: values.email.split("@")[0],
-        email: values.email,
-      }),
-    );
+      if (error) {
+        console.error("Error getting user:", error);
+        return;
+      }
+
+      if (!data.user) {
+        console.error("No user found");
+        return;
+      }
+
+      // Get profile data
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", data.user.id)
+        .single();
+
+      setIsAuthenticated(true);
+      setUsername(profileData?.username || values.email.split("@")[0]);
+      setCurrentView("main");
+
+      // Save minimal data to localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          username: profileData?.username || values.email.split("@")[0],
+          email: values.email,
+          id: data.user.id,
+        }),
+      );
+    } catch (error) {
+      console.error("Login error:", error);
+    }
   };
 
   const handleSignup = (values: {
@@ -141,12 +200,21 @@ const Home = () => {
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setIsWalletConnected(false);
-    setUsername("");
-    setCurrentView("auth");
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error signing out:", error);
+      }
+
+      setIsAuthenticated(false);
+      setIsWalletConnected(false);
+      setUsername("");
+      setCurrentView("auth");
+      localStorage.removeItem("user");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const [duelSetupActive, setDuelSetupActive] = useState(false);
