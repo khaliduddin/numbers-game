@@ -32,7 +32,7 @@ const StatsOverview = ({
     bestScore: 98,
     fastestTime: "1.2s",
     accuracy: 92,
-    level: 7,
+    level: 0,
     xpProgress: 68,
   },
 }: StatsOverviewProps) => {

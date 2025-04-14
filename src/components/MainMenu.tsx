@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import GameModeCard from "./GameModeCard";
 import { Button } from "./ui/button";
-import { User, Trophy, BarChart } from "lucide-react";
+import { User, Trophy, BarChart, LogOut } from "lucide-react";
 
 interface MainMenuProps {
   username?: string;
@@ -61,6 +61,9 @@ const MainMenu = ({
               Number Master
             </h1>
             <p className="text-muted-foreground text-center sm:text-left">
+              (alpha 1.0)
+            </p>
+            <p className="text-muted-foreground text-center sm:text-left">
               Welcome back, {username}!
             </p>
           </div>
@@ -98,6 +101,23 @@ const MainMenu = ({
               <Trophy size={18} className="hidden sm:inline" />
               <Trophy size={16} className="sm:hidden" />
               Leaderboard
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const event = new CustomEvent("logout", {
+                  bubbles: true,
+                  cancelable: true,
+                });
+                document.dispatchEvent(event);
+                console.log("Dispatched logout event");
+              }}
+              className="flex items-center gap-1 sm:gap-2 text-red-600 hover:text-red-800 hover:bg-red-50"
+              size="sm"
+            >
+              <LogOut size={18} className="hidden sm:inline" />
+              <LogOut size={16} className="sm:hidden" />
+              Sign Out
             </Button>
           </div>
         </header>

@@ -1,12 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import { Wallet, Settings, Share2, Trophy, History, Medal } from "lucide-react";
+import {
+  Wallet,
+  Settings,
+  Share2,
+  Trophy,
+  History,
+  Medal,
+  Edit,
+  Check,
+  X,
+} from "lucide-react";
+import { Input } from "../ui/input";
 import StatsOverview from "./StatsOverview";
 import GameHistory from "./GameHistory";
+import { supabase } from "@/lib/supabase";
+import { AuthUser } from "@/services/authService";
 
 interface ProfileViewProps {
   user?: {
@@ -28,8 +41,13 @@ interface Achievement {
   icon: string;
 }
 
-const ProfileView = ({
-  user = {
+const ProfileView = ({ user: propUser }: ProfileViewProps) => {
+  const [activeTab, setActiveTab] = useState("stats");
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [editedUsername, setEditedUsername] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [user, setUser] = useState<ProfileViewProps["user"]>({
     id: "user123",
     username: "NumberNinja",
     email: "player@example.com",
@@ -59,9 +77,76 @@ const ProfileView = ({
         icon: "award",
       },
     ],
-  },
-}: ProfileViewProps) => {
-  const [activeTab, setActiveTab] = useState("stats");
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // If user is passed as prop, use it instead of fetching
+    if (propUser) {
+      setUser(propUser);
+      setEditedUsername(propUser.username || "");
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise fetch the current user
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Get current user from Supabase auth
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (!authUser) {
+          setError("User not authenticated");
+          setLoading(false);
+          return;
+        }
+
+        // Get profile data from profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          setError("Error fetching profile data");
+          setLoading(false);
+          return;
+        }
+
+        // Format the user data
+        const userData = {
+          id: authUser.id,
+          username:
+            profileData?.username || authUser.user_metadata?.username || "User",
+          email: authUser.email || "",
+          avatarUrl:
+            profileData?.avatar_url ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData?.username || "User"}`,
+          walletAddress: profileData?.wallet_address,
+          joinDate: profileData?.created_at || authUser.created_at,
+          achievements: [], // We'll implement achievements later
+        };
+
+        setUser(userData);
+        setEditedUsername(userData.username || "");
+      } catch (err) {
+        console.error("Error in fetchUserProfile:", err);
+        setError("An unexpected error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [propUser]);
 
   // Format wallet address for display
   const formatWalletAddress = (address: string) => {
@@ -93,6 +178,87 @@ const ProfileView = ({
     }
   };
 
+  if (loading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-6 bg-background flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-6 bg-background flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="bg-red-100 text-red-800 p-4 rounded-lg mb-4">
+            <p>{error}</p>
+          </div>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Function to handle saving the username
+  const handleSaveUsername = async () => {
+    if (!editedUsername.trim()) {
+      setSaveError("Username cannot be empty");
+      return;
+    }
+
+    if (editedUsername === user.username) {
+      setIsEditingUsername(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Get current user from Supabase auth
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        setSaveError("User not authenticated");
+        return;
+      }
+
+      // Update the username in the profiles table
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ username: editedUsername })
+        .eq("id", authUser.id);
+
+      if (updateError) {
+        console.error("Error updating username:", updateError);
+        setSaveError("Failed to update username");
+        return;
+      }
+
+      // Update the local user state
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              username: editedUsername,
+            }
+          : prev,
+      );
+
+      setIsEditingUsername(false);
+    } catch (err) {
+      console.error("Error in handleSaveUsername:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-6 bg-background">
       {/* Profile Header */}
@@ -106,13 +272,60 @@ const ProfileView = ({
 
         <div className="flex-1 text-center md:text-left">
           <div className="flex flex-col md:flex-row md:items-center gap-1 sm:gap-2 md:gap-4 justify-center md:justify-start">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-              {user.username}
-            </h1>
+            {isEditingUsername ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editedUsername}
+                  onChange={(e) => setEditedUsername(e.target.value)}
+                  className="h-8 text-lg font-bold max-w-[200px]"
+                  placeholder="Username"
+                  disabled={isSaving}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => handleSaveUsername()}
+                  disabled={isSaving}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setIsEditingUsername(false);
+                    setEditedUsername(user.username || "");
+                    setSaveError(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+                  {user.username}
+                </h1>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => setIsEditingUsername(true)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             <Badge variant="outline" className="w-fit mx-auto md:mx-0">
-              Level 7
+              Level 0
             </Badge>
           </div>
+          {saveError && (
+            <div className="text-red-500 text-sm mt-1">{saveError}</div>
+          )}
 
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             {user.email}

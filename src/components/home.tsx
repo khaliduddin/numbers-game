@@ -89,7 +89,11 @@ const Home = () => {
     const eventListener = handleViewChange as EventListener;
     document.addEventListener("changeView", eventListener);
 
-    console.log("Event listener for changeView added");
+    // Add event listener for logout
+    const logoutListener = () => handleLogout();
+    document.addEventListener("logout", logoutListener);
+
+    console.log("Event listeners for changeView and logout added");
 
     // For debugging
     document.addEventListener("click", (e) => {
@@ -101,7 +105,8 @@ const Home = () => {
 
     return () => {
       document.removeEventListener("changeView", eventListener);
-      console.log("Event listener for changeView removed");
+      document.removeEventListener("logout", logoutListener);
+      console.log("Event listeners for changeView and logout removed");
     };
   }, [handleViewChange]);
 
@@ -151,20 +156,9 @@ const Home = () => {
     password: string;
     confirmPassword: string;
   }) => {
-    // Simulate signup
-    console.log("Signup with:", values);
-    setIsAuthenticated(true);
-    setUsername(values.username);
-    setCurrentView("main");
-
-    // Save to localStorage for demo persistence
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        username: values.username,
-        email: values.email,
-      }),
-    );
+    // Don't automatically authenticate after signup - require email verification
+    setCurrentView("auth");
+    // Don't log sensitive information
   };
 
   const handleWalletConnect = (walletAddress: string) => {

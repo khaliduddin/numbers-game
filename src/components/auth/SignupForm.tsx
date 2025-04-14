@@ -49,6 +49,7 @@ const SignupForm = ({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -63,6 +64,7 @@ const SignupForm = ({
   const handleSubmit = async (values: SignupFormValues) => {
     setIsLoading(true);
     setError(null);
+    setVerificationSent(false);
 
     try {
       // Register the user with Supabase
@@ -71,6 +73,9 @@ const SignupForm = ({
         password: values.password,
         username: values.username,
       });
+
+      // Show verification email sent message
+      setVerificationSent(true);
 
       // Call the onSubmit prop with the form values
       onSubmit(values);
@@ -202,8 +207,21 @@ const SignupForm = ({
           />
 
           {error && <div className="text-sm text-red-500 mb-4">{error}</div>}
+          {verificationSent && (
+            <div className="text-sm text-green-500 mb-4 p-3 bg-green-50 rounded-md border border-green-200">
+              <p className="font-medium">Verification email sent!</p>
+              <p>
+                Please check your email and click the verification link to
+                complete your registration.
+              </p>
+            </div>
+          )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading || verificationSent}
+          >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </Button>
 

@@ -33,11 +33,28 @@ interface LoginFormProps {
 
 const LoginForm = ({
   onSubmit = () => {},
-  onForgotPassword = () => {},
+  onForgotPassword = async () => {
+    const email = prompt(
+      "Please enter your email address to reset your password",
+    );
+    if (email) {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}`,
+        });
+        if (error) throw error;
+        alert("Password reset email sent! Please check your inbox.");
+      } catch (error) {
+        console.error("Error sending reset email:", error);
+        alert("Failed to send reset email. Please try again.");
+      }
+    }
+  },
   onSignUpClick = () => {},
 }: LoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -49,6 +66,7 @@ const LoginForm = ({
 
   const handleSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    setLoginError(null);
     try {
       // Use Supabase authentication directly
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -57,13 +75,21 @@ const LoginForm = ({
       });
 
       if (error) {
+        // Handle specific error cases
+        if (error.message.includes("Email not confirmed")) {
+          setLoginError("Please verify your email before signing in.");
+        } else if (error.message.includes("Invalid login credentials")) {
+          setLoginError("Invalid email or password. Please try again.");
+        } else {
+          setLoginError(error.message);
+        }
         throw new Error(error.message);
       }
 
       await onSubmit(values);
     } catch (error) {
       console.error("Login error:", error);
-      // You could add error handling here, e.g. showing an error message
+      // Error is already handled above
     } finally {
       setIsLoading(false);
     }
@@ -155,6 +181,12 @@ const LoginForm = ({
               Forgot password?
             </Button>
           </div>
+
+          {loginError && (
+            <div className="text-sm text-red-500 p-3 bg-red-50 rounded-md border border-red-200 mt-3">
+              {loginError}
+            </div>
+          )}
 
           <Button
             type="submit"
