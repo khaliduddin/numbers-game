@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
-import AuthContainer from "./auth/AuthContainer";
 import MainMenu from "./MainMenu";
 import GameContainer from "./game/GameContainer";
 import DuelSetupScreen from "./game/DuelSetupScreen";
@@ -12,10 +10,9 @@ import TournamentLobby from "./tournament/TournamentLobby";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [username, setUsername] = useState("");
-  const [currentView, setCurrentView] = useState("auth"); // auth, main, game, profile, leaderboard, tournament
+  const [username, setUsername] = useState("Guest");
+  const [currentView, setCurrentView] = useState("main"); // main, game, profile, leaderboard, tournament
   const [gameMode, setGameMode] = useState<"solo" | "1v1" | "tournament">(
     "solo",
   );
@@ -36,55 +33,8 @@ const Home = () => {
     }
   }, []);
 
-  // Check if user is already logged in with Supabase
+  // Set up event listeners for view changes
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error("Error checking auth status:", error);
-        return;
-      }
-
-      if (data.session) {
-        // User is authenticated
-        const { data: userData } = await supabase.auth.getUser();
-
-        if (userData.user) {
-          // Get profile data
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", userData.user.id)
-            .single();
-
-          setIsAuthenticated(true);
-          setUsername(
-            profileData?.username || userData.user.email?.split("@")[0] || "",
-          );
-          setCurrentView("main");
-
-          if (profileData?.wallet_address) {
-            setIsWalletConnected(true);
-          }
-        }
-      } else {
-        // Check localStorage as fallback
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          setIsAuthenticated(true);
-          setUsername(user.username);
-          setCurrentView("main");
-          if (user.walletAddress) {
-            setIsWalletConnected(true);
-          }
-        }
-      }
-    };
-
-    checkAuthStatus();
-
     // Add event listener for view changes
     const eventListener = handleViewChange as EventListener;
     document.addEventListener("changeView", eventListener);
@@ -109,57 +59,6 @@ const Home = () => {
       console.log("Event listeners for changeView and logout removed");
     };
   }, [handleViewChange]);
-
-  const handleLogin = async (values: { email: string; password: string }) => {
-    try {
-      // Get user data from Supabase
-      const { data, error } = await supabase.auth.getUser();
-
-      if (error) {
-        console.error("Error getting user:", error);
-        return;
-      }
-
-      if (!data.user) {
-        console.error("No user found");
-        return;
-      }
-
-      // Get profile data
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .single();
-
-      setIsAuthenticated(true);
-      setUsername(profileData?.username || values.email.split("@")[0]);
-      setCurrentView("main");
-
-      // Save minimal data to localStorage
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          username: profileData?.username || values.email.split("@")[0],
-          email: values.email,
-          id: data.user.id,
-        }),
-      );
-    } catch (error) {
-      console.error("Login error:", error);
-    }
-  };
-
-  const handleSignup = (values: {
-    username: string;
-    email: string;
-    password: string;
-    confirmPassword: string;
-  }) => {
-    // Don't automatically authenticate after signup - require email verification
-    setCurrentView("auth");
-    // Don't log sensitive information
-  };
 
   const handleWalletConnect = (walletAddress: string) => {
     // Simulate wallet connection
@@ -194,21 +93,12 @@ const Home = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Error signing out:", error);
-      }
-
-      setIsAuthenticated(false);
-      setIsWalletConnected(false);
-      setUsername("");
-      setCurrentView("auth");
-      localStorage.removeItem("user");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+  const handleLogout = () => {
+    // In guest mode, just reset wallet connection
+    setIsWalletConnected(false);
+    setUsername("Guest");
+    setCurrentView("main");
+    localStorage.removeItem("user");
   };
 
   const [duelSetupActive, setDuelSetupActive] = useState(false);
@@ -245,21 +135,6 @@ const Home = () => {
 
   const renderView = () => {
     switch (currentView) {
-      case "auth":
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center items-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"
-          >
-            <AuthContainer
-              onLogin={handleLogin}
-              onSignup={handleSignup}
-              onWalletConnect={handleWalletConnect}
-            />
-          </motion.div>
-        );
       case "main":
         return (
           <motion.div

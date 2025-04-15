@@ -25,10 +25,12 @@ interface ProfileViewProps {
   user?: {
     id: string;
     username: string;
-    email: string;
     avatarUrl?: string;
-    walletAddress?: string;
     joinDate: string;
+    email?: string;
+    telegramId?: string;
+    walletAddress?: string;
+    phoneNumber?: string;
     achievements?: Achievement[];
   };
 }
@@ -44,16 +46,26 @@ interface Achievement {
 const ProfileView = ({ user: propUser }: ProfileViewProps) => {
   const [activeTab, setActiveTab] = useState("stats");
   const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [isEditingTelegramId, setIsEditingTelegramId] = useState(false);
+  const [isEditingWalletAddress, setIsEditingWalletAddress] = useState(false);
+  const [isEditingPhoneNumber, setIsEditingPhoneNumber] = useState(false);
   const [editedUsername, setEditedUsername] = useState("");
+  const [editedEmail, setEditedEmail] = useState("");
+  const [editedTelegramId, setEditedTelegramId] = useState("");
+  const [editedWalletAddress, setEditedWalletAddress] = useState("");
+  const [editedPhoneNumber, setEditedPhoneNumber] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [user, setUser] = useState<ProfileViewProps["user"]>({
-    id: "user123",
-    username: "NumberNinja",
-    email: "player@example.com",
-    avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=NumberNinja",
-    walletAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-    joinDate: "2023-01-15",
+    id: "guest-user",
+    username: "Guest Player",
+    avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=GuestPlayer",
+    joinDate: new Date().toISOString(),
+    email: "",
+    telegramId: "",
+    walletAddress: "",
+    phoneNumber: "",
     achievements: [
       {
         id: "ach1",
@@ -86,57 +98,47 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     if (propUser) {
       setUser(propUser);
       setEditedUsername(propUser.username || "");
+      setEditedEmail(propUser.email || "");
+      setEditedTelegramId(propUser.telegramId || "");
+      setEditedWalletAddress(propUser.walletAddress || "");
+      setEditedPhoneNumber(propUser.phoneNumber || "");
       setLoading(false);
       return;
     }
 
-    // Otherwise fetch the current user
+    // Use default guest profile data
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Get current user from Supabase auth
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser();
+        // Try to load from localStorage first
+        const savedProfile = localStorage.getItem("userProfile");
+        let userData;
 
-        if (!authUser) {
-          setError("User not authenticated");
-          setLoading(false);
-          return;
+        if (savedProfile) {
+          userData = JSON.parse(savedProfile);
+        } else {
+          // Create default guest user data
+          userData = {
+            id: "guest-user",
+            username: "Guest Player",
+            joinDate: new Date().toISOString(),
+            avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=GuestPlayer`,
+            email: "",
+            telegramId: "",
+            walletAddress: "",
+            phoneNumber: "",
+            achievements: [], // We'll implement achievements later
+          };
         }
-
-        // Get profile data from profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authUser.id)
-          .single();
-
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
-          setError("Error fetching profile data");
-          setLoading(false);
-          return;
-        }
-
-        // Format the user data
-        const userData = {
-          id: authUser.id,
-          username:
-            profileData?.username || authUser.user_metadata?.username || "User",
-          email: authUser.email || "",
-          avatarUrl:
-            profileData?.avatar_url ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData?.username || "User"}`,
-          walletAddress: profileData?.wallet_address,
-          joinDate: profileData?.created_at || authUser.created_at,
-          achievements: [], // We'll implement achievements later
-        };
 
         setUser(userData);
         setEditedUsername(userData.username || "");
+        setEditedEmail(userData.email || "");
+        setEditedTelegramId(userData.telegramId || "");
+        setEditedWalletAddress(userData.walletAddress || "");
+        setEditedPhoneNumber(userData.phoneNumber || "");
       } catch (err) {
         console.error("Error in fetchUserProfile:", err);
         setError("An unexpected error occurred");
@@ -218,41 +220,140 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
       setIsSaving(true);
       setSaveError(null);
 
-      // Get current user from Supabase auth
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+      // Just update the local state for guest mode
+      const updatedUser = {
+        ...user,
+        username: editedUsername,
+        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${editedUsername}`,
+      };
 
-      if (!authUser) {
-        setSaveError("User not authenticated");
-        return;
-      }
-
-      // Update the username in the profiles table
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ username: editedUsername })
-        .eq("id", authUser.id);
-
-      if (updateError) {
-        console.error("Error updating username:", updateError);
-        setSaveError("Failed to update username");
-        return;
-      }
-
-      // Update the local user state
-      setUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              username: editedUsername,
-            }
-          : prev,
-      );
+      setUser(updatedUser);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
 
       setIsEditingUsername(false);
     } catch (err) {
       console.error("Error in handleSaveUsername:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to handle saving the email
+  const handleSaveEmail = async () => {
+    if (editedEmail === user.email) {
+      setIsEditingEmail(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Update the local state for guest mode
+      const updatedUser = {
+        ...user,
+        email: editedEmail,
+      };
+
+      setUser(updatedUser);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
+
+      setIsEditingEmail(false);
+    } catch (err) {
+      console.error("Error in handleSaveEmail:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to handle saving the telegram ID
+  const handleSaveTelegramId = async () => {
+    if (editedTelegramId === user.telegramId) {
+      setIsEditingTelegramId(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Update the local state for guest mode
+      const updatedUser = {
+        ...user,
+        telegramId: editedTelegramId,
+      };
+
+      setUser(updatedUser);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
+
+      setIsEditingTelegramId(false);
+    } catch (err) {
+      console.error("Error in handleSaveTelegramId:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to handle saving the wallet address
+  const handleSaveWalletAddress = async () => {
+    if (editedWalletAddress === user.walletAddress) {
+      setIsEditingWalletAddress(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Update the local state for guest mode
+      const updatedUser = {
+        ...user,
+        walletAddress: editedWalletAddress,
+      };
+
+      setUser(updatedUser);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
+
+      setIsEditingWalletAddress(false);
+    } catch (err) {
+      console.error("Error in handleSaveWalletAddress:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to handle saving the phone number
+  const handleSavePhoneNumber = async () => {
+    if (editedPhoneNumber === user.phoneNumber) {
+      setIsEditingPhoneNumber(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Update the local state for guest mode
+      const updatedUser = {
+        ...user,
+        phoneNumber: editedPhoneNumber,
+      };
+
+      setUser(updatedUser);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
+
+      setIsEditingPhoneNumber(false);
+    } catch (err) {
+      console.error("Error in handleSavePhoneNumber:", err);
       setSaveError("An unexpected error occurred");
     } finally {
       setIsSaving(false);
@@ -327,18 +428,218 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
             <div className="text-red-500 text-sm mt-1">{saveError}</div>
           )}
 
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            {user.email}
-          </p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Member since {formatDate(user.joinDate)}
           </p>
 
-          <div className="flex items-center gap-2 mt-2 sm:mt-3 justify-center md:justify-start">
-            {user.walletAddress && (
-              <div className="flex items-center gap-1 sm:gap-2 bg-secondary/30 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm">
-                <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>{formatWalletAddress(user.walletAddress)}</span>
+          {/* Email Field */}
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-sm font-medium w-24">Email:</span>
+            {isEditingEmail ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editedEmail}
+                  onChange={(e) => setEditedEmail(e.target.value)}
+                  className="h-8 text-sm max-w-[250px]"
+                  placeholder="Email address"
+                  type="email"
+                  disabled={isSaving}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => handleSaveEmail()}
+                  disabled={isSaving}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setIsEditingEmail(false);
+                    setEditedEmail(user.email || "");
+                    setSaveError(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-sm text-muted-foreground">
+                  {user.email || "Not set"}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditingEmail(true)}
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Telegram ID Field */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm font-medium w-24">Telegram ID:</span>
+            {isEditingTelegramId ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editedTelegramId}
+                  onChange={(e) => setEditedTelegramId(e.target.value)}
+                  className="h-8 text-sm max-w-[250px]"
+                  placeholder="Telegram username"
+                  disabled={isSaving}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => handleSaveTelegramId()}
+                  disabled={isSaving}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setIsEditingTelegramId(false);
+                    setEditedTelegramId(user.telegramId || "");
+                    setSaveError(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-sm text-muted-foreground">
+                  {user.telegramId || "Not set"}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditingTelegramId(true)}
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Wallet Address Field */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm font-medium w-24">Wallet:</span>
+            {isEditingWalletAddress ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editedWalletAddress}
+                  onChange={(e) => setEditedWalletAddress(e.target.value)}
+                  className="h-8 text-sm max-w-[250px]"
+                  placeholder="Wallet address"
+                  disabled={isSaving}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => handleSaveWalletAddress()}
+                  disabled={isSaving}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setIsEditingWalletAddress(false);
+                    setEditedWalletAddress(user.walletAddress || "");
+                    setSaveError(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-sm text-muted-foreground">
+                  {user.walletAddress
+                    ? formatWalletAddress(user.walletAddress)
+                    : "Not set"}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditingWalletAddress(true)}
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Phone Number Field */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm font-medium w-24">Phone:</span>
+            {isEditingPhoneNumber ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editedPhoneNumber}
+                  onChange={(e) => setEditedPhoneNumber(e.target.value)}
+                  className="h-8 text-sm max-w-[250px]"
+                  placeholder="Phone number"
+                  type="tel"
+                  disabled={isSaving}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => handleSavePhoneNumber()}
+                  disabled={isSaving}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setIsEditingPhoneNumber(false);
+                    setEditedPhoneNumber(user.phoneNumber || "");
+                    setSaveError(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-sm text-muted-foreground">
+                  {user.phoneNumber || "Not set"}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditingPhoneNumber(true)}
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
               </div>
             )}
           </div>

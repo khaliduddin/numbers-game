@@ -1,18 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+// This file is kept as a placeholder for future implementation of authentication
+// Currently the app is running in guest mode without authentication
 
-// Check if environment variables are available
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Create a mock client if environment variables are not available
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    "Supabase environment variables are missing. Using mock client.",
-  );
-}
-
-// Create and export the Supabase client with fallback values for development
-export const supabase = createClient(
-  supabaseUrl || "https://placeholder-project.supabase.co",
-  supabaseAnonKey || "placeholder-key",
-);
+export const supabase = {
+  // Mock methods to prevent errors in case any code still references supabase
+  auth: {
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signOut: async () => ({ error: null }),
+    signInWithPassword: async () => ({
+      data: null,
+      error: { message: "Authentication disabled" },
+    }),
+    signUp: async () => ({
+      data: null,
+      error: { message: "Authentication disabled" },
+    }),
+    resetPasswordForEmail: async () => ({ error: null }),
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: async () => ({ data: null, error: null }),
+      }),
+    }),
+  }),
+};
