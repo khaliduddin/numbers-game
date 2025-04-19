@@ -43,16 +43,28 @@ export const authService = {
       throw new Error("Failed to create user");
     }
 
-    // We don't need to manually create a profile record anymore
-    // The database trigger will handle this automatically based on the auth.users record
-    // Just return the user data
+    // Create a profile in the unified_profiles table
+    const { unifiedProfileService } = await import(
+      "@/lib/unifiedProfileService"
+    );
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+    const joinDate = new Date().toISOString();
+
+    await unifiedProfileService.saveProfile({
+      id: authData.user.id,
+      username,
+      email,
+      avatarUrl,
+      joinDate,
+      isGuest: false,
+    });
 
     return {
       id: authData.user.id,
       email: authData.user.email || email,
       username: username,
-      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-      joinDate: new Date().toISOString(),
+      avatarUrl: avatarUrl,
+      joinDate: joinDate,
     };
   },
 
@@ -73,25 +85,45 @@ export const authService = {
       throw new Error("Failed to sign in");
     }
 
-    // Get the user profile data
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .single();
+    // Get the user profile data from unified_profiles
+    const { unifiedProfileService } = await import(
+      "@/lib/unifiedProfileService"
+    );
+    const { profile, error: profileError } =
+      await unifiedProfileService.getProfile(data.user.id);
 
-    if (profileError && profileError.code !== "PGRST116") {
-      // PGRST116 is the error code for no rows returned
+    if (profileError) {
       console.error("Error fetching profile:", profileError);
+    }
+
+    // If profile doesn't exist, create it
+    if (!profile) {
+      const { profile: newProfile } = await unifiedProfileService.saveProfile({
+        id: data.user.id,
+        username: email.split("@")[0],
+        email: email,
+        isGuest: false,
+        joinDate: new Date().toISOString(),
+        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email.split("@")[0]}`,
+      });
+
+      return {
+        id: data.user.id,
+        email: data.user.email || email,
+        username: newProfile?.username || email.split("@")[0],
+        avatarUrl: newProfile?.avatarUrl,
+        walletAddress: newProfile?.walletAddress,
+        joinDate: newProfile?.joinDate || new Date().toISOString(),
+      };
     }
 
     return {
       id: data.user.id,
       email: data.user.email || email,
-      username: profileData?.username,
-      avatarUrl: profileData?.avatar_url,
-      walletAddress: profileData?.wallet_address,
-      joinDate: profileData?.join_date,
+      username: profile.username,
+      avatarUrl: profile.avatarUrl,
+      walletAddress: profile.walletAddress,
+      joinDate: profile.joinDate,
     };
   },
 
@@ -115,20 +147,40 @@ export const authService = {
       return null;
     }
 
-    // Get the user profile data
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .single();
+    // Get the user profile data from unified_profiles
+    const { unifiedProfileService } = await import(
+      "@/lib/unifiedProfileService"
+    );
+    const { profile } = await unifiedProfileService.getProfile(data.user.id);
+
+    if (!profile) {
+      // If no profile exists, create a basic one
+      const username = data.user.email ? data.user.email.split("@")[0] : "User";
+      const { profile: newProfile } = await unifiedProfileService.saveProfile({
+        id: data.user.id,
+        username,
+        email: data.user.email || "",
+        isGuest: false,
+        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+      });
+
+      return {
+        id: data.user.id,
+        email: data.user.email || "",
+        username: newProfile?.username || username,
+        avatarUrl: newProfile?.avatarUrl,
+        walletAddress: newProfile?.walletAddress,
+        joinDate: newProfile?.joinDate,
+      };
+    }
 
     return {
       id: data.user.id,
       email: data.user.email || "",
-      username: profileData?.username,
-      avatarUrl: profileData?.avatar_url,
-      walletAddress: profileData?.wallet_address,
-      joinDate: profileData?.join_date,
+      username: profile.username,
+      avatarUrl: profile.avatarUrl,
+      walletAddress: profile.walletAddress,
+      joinDate: profile.joinDate,
     };
   },
 };

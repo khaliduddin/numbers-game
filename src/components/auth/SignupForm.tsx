@@ -68,11 +68,26 @@ const SignupForm = ({
 
     try {
       // Register the user with Supabase
-      await authService.signup({
+      const user = await authService.signup({
         email: values.email,
         password: values.password,
         username: values.username,
       });
+
+      // Store the user profile in localStorage
+      if (user) {
+        localStorage.setItem(
+          "userProfile",
+          JSON.stringify({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+            joinDate: user.joinDate,
+            isGuest: false,
+          }),
+        );
+      }
 
       // Show verification email sent message
       setVerificationSent(true);

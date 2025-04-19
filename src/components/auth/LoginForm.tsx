@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { unifiedProfileService } from "@/lib/unifiedProfileService";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,75 @@ const LoginForm = ({
         email: values.email,
         password: values.password,
       });
+
+      // If login successful, get the user profile
+      if (!error && data.user) {
+        // Get the user profile from unified_profiles
+        const { profile } = await unifiedProfileService.getProfile(
+          data.user.id,
+          false, // Explicitly set isGuest to false for auth users
+        );
+
+        // If profile exists, update local values
+        if (profile) {
+          values.username = profile.username;
+          values.avatarUrl = profile.avatarUrl;
+
+          // Store the complete user profile in localStorage
+          localStorage.setItem(
+            "userProfile",
+            JSON.stringify({
+              id: profile.id,
+              username: profile.username,
+              email: profile.email,
+              telegramId: profile.telegramId,
+              walletAddress: profile.walletAddress,
+              phoneNumber: profile.phoneNumber,
+              avatarUrl: profile.avatarUrl,
+              joinDate: profile.joinDate,
+              referralCode: profile.referralCode,
+              isGuest: false,
+            }),
+          );
+        } else {
+          // If no profile exists, create a basic one
+          const username = values.email.split("@")[0];
+          const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+
+          // Create profile in unified_profiles
+          const { profile: newProfile } =
+            await unifiedProfileService.saveProfile({
+              id: data.user.id,
+              username,
+              email: values.email,
+              avatarUrl,
+              isGuest: false,
+              joinDate: new Date().toISOString(),
+            });
+
+          if (newProfile) {
+            values.username = newProfile.username;
+            values.avatarUrl = newProfile.avatarUrl;
+
+            // Store the complete user profile in localStorage
+            localStorage.setItem(
+              "userProfile",
+              JSON.stringify({
+                id: newProfile.id,
+                username: newProfile.username,
+                email: newProfile.email,
+                telegramId: newProfile.telegramId,
+                walletAddress: newProfile.walletAddress,
+                phoneNumber: newProfile.phoneNumber,
+                avatarUrl: newProfile.avatarUrl,
+                joinDate: newProfile.joinDate,
+                referralCode: newProfile.referralCode,
+                isGuest: false,
+              }),
+            );
+          }
+        }
+      }
 
       if (error) {
         // Handle specific error cases

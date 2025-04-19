@@ -4,21 +4,12 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import {
-  Wallet,
-  Settings,
-  Share2,
-  Trophy,
-  History,
-  Medal,
-  Edit,
-  Check,
-  X,
-} from "lucide-react";
-import { Input } from "../ui/input";
+import { Settings, Share2, Trophy, History, Medal } from "lucide-react";
 import StatsOverview from "./StatsOverview";
 import GameHistory from "./GameHistory";
+import ProfileForm from "./ProfileForm";
 import { supabase } from "@/lib/supabase";
+import { unifiedProfileService } from "@/lib/unifiedProfileService";
 import { AuthUser } from "@/services/authService";
 
 interface ProfileViewProps {
@@ -31,6 +22,7 @@ interface ProfileViewProps {
     telegramId?: string;
     walletAddress?: string;
     phoneNumber?: string;
+    referralCode?: string;
     achievements?: Achievement[];
   };
 }
@@ -45,20 +37,9 @@ interface Achievement {
 
 const ProfileView = ({ user: propUser }: ProfileViewProps) => {
   const [activeTab, setActiveTab] = useState("stats");
-  const [isEditingUsername, setIsEditingUsername] = useState(false);
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [isEditingTelegramId, setIsEditingTelegramId] = useState(false);
-  const [isEditingWalletAddress, setIsEditingWalletAddress] = useState(false);
-  const [isEditingPhoneNumber, setIsEditingPhoneNumber] = useState(false);
-  const [editedUsername, setEditedUsername] = useState("");
-  const [editedEmail, setEditedEmail] = useState("");
-  const [editedTelegramId, setEditedTelegramId] = useState("");
-  const [editedWalletAddress, setEditedWalletAddress] = useState("");
-  const [editedPhoneNumber, setEditedPhoneNumber] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+
   const [user, setUser] = useState<ProfileViewProps["user"]>({
-    id: "guest-user",
+    id: "00000000-0000-0000-0000-000000000000", // Using a valid UUID format for guest users
     username: "Guest Player",
     avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=GuestPlayer",
     joinDate: new Date().toISOString(),
@@ -66,6 +47,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     telegramId: "",
     walletAddress: "",
     phoneNumber: "",
+    referralCode: "",
     achievements: [
       {
         id: "ach1",
@@ -97,11 +79,6 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     // If user is passed as prop, use it instead of fetching
     if (propUser) {
       setUser(propUser);
-      setEditedUsername(propUser.username || "");
-      setEditedEmail(propUser.email || "");
-      setEditedTelegramId(propUser.telegramId || "");
-      setEditedWalletAddress(propUser.walletAddress || "");
-      setEditedPhoneNumber(propUser.phoneNumber || "");
       setLoading(false);
       return;
     }
@@ -121,7 +98,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         } else {
           // Create default guest user data
           userData = {
-            id: "guest-user",
+            id: "00000000-0000-0000-0000-000000000000", // Using a valid UUID format for guest users
             username: "Guest Player",
             joinDate: new Date().toISOString(),
             avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=GuestPlayer`,
@@ -129,16 +106,12 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
             telegramId: "",
             walletAddress: "",
             phoneNumber: "",
+            referralCode: "",
             achievements: [], // We'll implement achievements later
           };
         }
 
         setUser(userData);
-        setEditedUsername(userData.username || "");
-        setEditedEmail(userData.email || "");
-        setEditedTelegramId(userData.telegramId || "");
-        setEditedWalletAddress(userData.walletAddress || "");
-        setEditedPhoneNumber(userData.phoneNumber || "");
       } catch (err) {
         console.error("Error in fetchUserProfile:", err);
         setError("An unexpected error occurred");
@@ -149,12 +122,6 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
 
     fetchUserProfile();
   }, [propUser]);
-
-  // Format wallet address for display
-  const formatWalletAddress = (address: string) => {
-    if (!address) return "";
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  };
 
   // Format date to be more readable
   const formatDate = (dateString: string) => {
@@ -204,159 +171,46 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     );
   }
 
-  // Function to handle saving the username
-  const handleSaveUsername = async () => {
-    if (!editedUsername.trim()) {
-      setSaveError("Username cannot be empty");
-      return;
-    }
+  // Handle saving profile updates
+  const handleSaveProfile = async (updatedUser: any) => {
+    // Save to localStorage
+    localStorage.setItem("userProfile", JSON.stringify(updatedUser));
 
-    if (editedUsername === user.username) {
-      setIsEditingUsername(false);
-      return;
-    }
-
+    // Save to Supabase using unified profile service
     try {
-      setIsSaving(true);
-      setSaveError(null);
+      const { profile, error } = await unifiedProfileService.saveProfile({
+        id: updatedUser.id,
+        guestId:
+          updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
+          updatedUser.id.startsWith("guest_")
+            ? updatedUser.id
+            : undefined,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        telegramId: updatedUser.telegramId,
+        walletAddress: updatedUser.walletAddress,
+        phoneNumber: updatedUser.phoneNumber,
+        avatarUrl: updatedUser.avatarUrl,
+        isGuest:
+          updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
+          updatedUser.id.startsWith("guest_"),
+      });
 
-      // Just update the local state for guest mode
-      const updatedUser = {
-        ...user,
-        username: editedUsername,
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${editedUsername}`,
-      };
+      if (error) {
+        console.error("Error saving profile to Supabase:", error);
+      }
+
+      // If profile was returned, update the user object
+      if (profile) {
+        updatedUser.referralCode = profile.referralCode;
+        updatedUser.joinDate = profile.joinDate || updatedUser.joinDate;
+      }
 
       setUser(updatedUser);
-      // Save to localStorage
-      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-      setIsEditingUsername(false);
     } catch (err) {
-      console.error("Error in handleSaveUsername:", err);
-      setSaveError("An unexpected error occurred");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Function to handle saving the email
-  const handleSaveEmail = async () => {
-    if (editedEmail === user.email) {
-      setIsEditingEmail(false);
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-
-      // Update the local state for guest mode
-      const updatedUser = {
-        ...user,
-        email: editedEmail,
-      };
-
+      console.error("Error using unifiedProfileService:", err);
+      // Continue without Supabase integration if there's an error
       setUser(updatedUser);
-      // Save to localStorage
-      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-      setIsEditingEmail(false);
-    } catch (err) {
-      console.error("Error in handleSaveEmail:", err);
-      setSaveError("An unexpected error occurred");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Function to handle saving the telegram ID
-  const handleSaveTelegramId = async () => {
-    if (editedTelegramId === user.telegramId) {
-      setIsEditingTelegramId(false);
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-
-      // Update the local state for guest mode
-      const updatedUser = {
-        ...user,
-        telegramId: editedTelegramId,
-      };
-
-      setUser(updatedUser);
-      // Save to localStorage
-      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-      setIsEditingTelegramId(false);
-    } catch (err) {
-      console.error("Error in handleSaveTelegramId:", err);
-      setSaveError("An unexpected error occurred");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Function to handle saving the wallet address
-  const handleSaveWalletAddress = async () => {
-    if (editedWalletAddress === user.walletAddress) {
-      setIsEditingWalletAddress(false);
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-
-      // Update the local state for guest mode
-      const updatedUser = {
-        ...user,
-        walletAddress: editedWalletAddress,
-      };
-
-      setUser(updatedUser);
-      // Save to localStorage
-      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-      setIsEditingWalletAddress(false);
-    } catch (err) {
-      console.error("Error in handleSaveWalletAddress:", err);
-      setSaveError("An unexpected error occurred");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Function to handle saving the phone number
-  const handleSavePhoneNumber = async () => {
-    if (editedPhoneNumber === user.phoneNumber) {
-      setIsEditingPhoneNumber(false);
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-
-      // Update the local state for guest mode
-      const updatedUser = {
-        ...user,
-        phoneNumber: editedPhoneNumber,
-      };
-
-      setUser(updatedUser);
-      // Save to localStorage
-      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-      setIsEditingPhoneNumber(false);
-    } catch (err) {
-      console.error("Error in handleSavePhoneNumber:", err);
-      setSaveError("An unexpected error occurred");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -371,278 +225,14 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
           </AvatarFallback>
         </Avatar>
 
+        <ProfileForm user={user} onSaveProfile={handleSaveProfile} />
         <div className="flex-1 text-center md:text-left">
-          <div className="flex flex-col md:flex-row md:items-center gap-1 sm:gap-2 md:gap-4 justify-center md:justify-start">
-            {isEditingUsername ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={editedUsername}
-                  onChange={(e) => setEditedUsername(e.target.value)}
-                  className="h-8 text-lg font-bold max-w-[200px]"
-                  placeholder="Username"
-                  disabled={isSaving}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => handleSaveUsername()}
-                  disabled={isSaving}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setIsEditingUsername(false);
-                    setEditedUsername(user.username || "");
-                    setSaveError(null);
-                  }}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-                  {user.username}
-                </h1>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => setIsEditingUsername(true)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            <Badge variant="outline" className="w-fit mx-auto md:mx-0">
-              Level 0
-            </Badge>
-          </div>
-          {saveError && (
-            <div className="text-red-500 text-sm mt-1">{saveError}</div>
-          )}
-
+          <Badge variant="outline" className="w-fit mx-auto md:mx-0 mt-2">
+            Level 0
+          </Badge>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Member since {formatDate(user.joinDate)}
           </p>
-
-          {/* Email Field */}
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-sm font-medium w-24">Email:</span>
-            {isEditingEmail ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedEmail}
-                  onChange={(e) => setEditedEmail(e.target.value)}
-                  className="h-8 text-sm max-w-[250px]"
-                  placeholder="Email address"
-                  type="email"
-                  disabled={isSaving}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => handleSaveEmail()}
-                  disabled={isSaving}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setIsEditingEmail(false);
-                    setEditedEmail(user.email || "");
-                    setSaveError(null);
-                  }}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground">
-                  {user.email || "Not set"}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setIsEditingEmail(true)}
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Telegram ID Field */}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-sm font-medium w-24">Telegram ID:</span>
-            {isEditingTelegramId ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedTelegramId}
-                  onChange={(e) => setEditedTelegramId(e.target.value)}
-                  className="h-8 text-sm max-w-[250px]"
-                  placeholder="Telegram username"
-                  disabled={isSaving}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => handleSaveTelegramId()}
-                  disabled={isSaving}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setIsEditingTelegramId(false);
-                    setEditedTelegramId(user.telegramId || "");
-                    setSaveError(null);
-                  }}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground">
-                  {user.telegramId || "Not set"}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setIsEditingTelegramId(true)}
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Wallet Address Field */}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-sm font-medium w-24">Wallet:</span>
-            {isEditingWalletAddress ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedWalletAddress}
-                  onChange={(e) => setEditedWalletAddress(e.target.value)}
-                  className="h-8 text-sm max-w-[250px]"
-                  placeholder="Wallet address"
-                  disabled={isSaving}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => handleSaveWalletAddress()}
-                  disabled={isSaving}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setIsEditingWalletAddress(false);
-                    setEditedWalletAddress(user.walletAddress || "");
-                    setSaveError(null);
-                  }}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground">
-                  {user.walletAddress
-                    ? formatWalletAddress(user.walletAddress)
-                    : "Not set"}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setIsEditingWalletAddress(true)}
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Phone Number Field */}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-sm font-medium w-24">Phone:</span>
-            {isEditingPhoneNumber ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedPhoneNumber}
-                  onChange={(e) => setEditedPhoneNumber(e.target.value)}
-                  className="h-8 text-sm max-w-[250px]"
-                  placeholder="Phone number"
-                  type="tel"
-                  disabled={isSaving}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => handleSavePhoneNumber()}
-                  disabled={isSaving}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setIsEditingPhoneNumber(false);
-                    setEditedPhoneNumber(user.phoneNumber || "");
-                    setSaveError(null);
-                  }}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground">
-                  {user.phoneNumber || "Not set"}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setIsEditingPhoneNumber(true)}
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end">

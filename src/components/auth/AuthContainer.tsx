@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import WalletConnect from "./WalletConnect";
-import { Wallet, Mail, User } from "lucide-react";
+import { Wallet, Mail, User, ArrowLeft } from "lucide-react";
 
 interface AuthContainerProps {
   onLogin?: (values: { email: string; password: string }) => void;
@@ -15,6 +16,7 @@ interface AuthContainerProps {
     confirmPassword: string;
   }) => void;
   onWalletConnect?: (walletAddress: string) => void;
+  onBackToWelcome?: () => void;
   defaultTab?: "login" | "signup" | "wallet";
 }
 
@@ -22,6 +24,7 @@ const AuthContainer = ({
   onLogin = () => {},
   onSignup = () => {},
   onWalletConnect = () => {},
+  onBackToWelcome = () => {},
   defaultTab = "login",
 }: AuthContainerProps) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
@@ -55,9 +58,21 @@ const AuthContainer = ({
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
       <div className="p-4 sm:p-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">
-          Web3 Number Game
-        </h1>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBackToWelcome}
+            className="flex items-center gap-1 text-xs"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Back
+          </Button>
+          <h1 className="text-xl sm:text-2xl font-bold text-center flex-1">
+            Web3 Number Game
+          </h1>
+          <div className="w-12"></div> {/* Spacer for balance */}
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-3 mb-4 sm:mb-6">

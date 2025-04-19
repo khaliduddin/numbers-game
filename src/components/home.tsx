@@ -7,15 +7,103 @@ import DuelSetupScreen from "./game/DuelSetupScreen";
 import ProfileView from "./profile/ProfileView";
 import LeaderboardView from "./leaderboard/LeaderboardView";
 import TournamentLobby from "./tournament/TournamentLobby";
+import AuthContainer from "./auth/AuthContainer";
+import { supabase } from "@/lib/supabase";
+import { unifiedProfileService } from "@/lib/unifiedProfileService";
 
 const Home = () => {
   const navigate = useNavigate();
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [username, setUsername] = useState("Guest");
-  const [currentView, setCurrentView] = useState("main"); // main, game, profile, leaderboard, tournament
+  const [currentView, setCurrentView] = useState("main"); // main, game, profile, leaderboard, tournament, auth
   const [gameMode, setGameMode] = useState<"solo" | "1v1" | "tournament">(
     "solo",
   );
+
+  // Check if we should show auth screen from localStorage
+  useEffect(() => {
+    const showAuth = localStorage.getItem("showAuth");
+    if (showAuth === "true") {
+      setCurrentView("auth");
+      localStorage.removeItem("showAuth"); // Clear the flag
+    }
+
+    // Check if user exists in localStorage
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      setUsername(user.username || "Guest");
+
+      // Update or create profile in Supabase for any user
+      updateUserProfile(user);
+    }
+
+    // Check if userProfile exists in localStorage (this takes precedence)
+    const savedProfile = localStorage.getItem("userProfile");
+    if (savedProfile) {
+      try {
+        const profile = JSON.parse(savedProfile);
+        setUsername(profile.username || "Guest");
+        // No need to update Supabase here as this is already a saved profile
+      } catch (err) {
+        console.error("Error parsing userProfile:", err);
+      }
+    }
+  }, []);
+
+  // Update or create profile in Supabase (works for both guest and auth users)
+  const updateUserProfile = async (user: any) => {
+    // Generate a unique ID for guest if not exists
+    if (user.isGuest && !user.guestId) {
+      user.guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem("user", JSON.stringify(user));
+    }
+
+    // Update last login time
+    user.lastLogin = new Date().toISOString();
+    localStorage.setItem("user", JSON.stringify(user));
+
+    // Save to Supabase
+    try {
+      const { profile, error } = await unifiedProfileService.saveProfile({
+        id: user.id, // Will be undefined for guests
+        guestId: user.guestId,
+        username: user.username || "Guest",
+        email: user.email,
+        joinDate: user.joinDate || new Date().toISOString(),
+        avatarUrl:
+          user.avatarUrl ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || "Guest"}`,
+        isGuest: user.isGuest || false,
+        walletAddress: user.walletAddress,
+      });
+
+      if (error) {
+        console.error("Error updating profile:", error);
+        return;
+      }
+
+      if (profile) {
+        // Update local storage with profile info
+        user.id = profile.id;
+        user.username = profile.username;
+        user.referralCode = profile.referralCode;
+        user.loginCount = profile.loginCount;
+        user.avatarUrl = profile.avatarUrl;
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // You could show a welcome back message for returning users
+        if (profile.loginCount && profile.loginCount > 1) {
+          console.log(
+            `Welcome back! This is your visit #${profile.loginCount}`,
+          );
+          // Could trigger a toast notification here
+        }
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+  };
 
   // Handle view changes from custom events
   const handleViewChange = useCallback((event: CustomEvent) => {
@@ -86,7 +174,6 @@ const Home = () => {
         };
         localStorage.setItem("user", JSON.stringify(newUser));
         setUsername("Wallet User");
-        setIsAuthenticated(true);
       }
     } else {
       setIsWalletConnected(false);
@@ -133,8 +220,102 @@ const Home = () => {
     // Could save stats or show a special screen here
   };
 
+  const handleAuthSuccess = (userData: any) => {
+    // Save user data and navigate to main menu
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUsername(userData.username || "User");
+    setCurrentView("main");
+  };
+
   const renderView = () => {
     switch (currentView) {
+      case "auth":
+        return (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="min-h-screen flex items-center justify-center"
+          >
+            <AuthContainer
+              onLogin={(values) => {
+                // The login form now handles storing the profile in localStorage
+                // We just need to update our local state
+                const savedProfile = localStorage.getItem("userProfile");
+                if (savedProfile) {
+                  try {
+                    const profile = JSON.parse(savedProfile);
+                    handleAuthSuccess({
+                      id: profile.id,
+                      username: profile.username || values.email.split("@")[0],
+                      email: profile.email || values.email,
+                      avatarUrl: profile.avatarUrl,
+                      isGuest: false,
+                      lastLogin: new Date().toISOString(),
+                    });
+                  } catch (err) {
+                    console.error("Error parsing userProfile:", err);
+                    // Fallback to basic info
+                    handleAuthSuccess({
+                      username: values.email.split("@")[0],
+                      email: values.email,
+                      isGuest: false,
+                      lastLogin: new Date().toISOString(),
+                    });
+                  }
+                } else {
+                  // Fallback to basic info
+                  handleAuthSuccess({
+                    username: values.email.split("@")[0],
+                    email: values.email,
+                    isGuest: false,
+                    lastLogin: new Date().toISOString(),
+                  });
+                }
+              }}
+              onSignup={(values) => {
+                // The signup form now handles storing the profile in localStorage
+                // We just need to update our local state
+                const savedProfile = localStorage.getItem("userProfile");
+                if (savedProfile) {
+                  try {
+                    const profile = JSON.parse(savedProfile);
+                    handleAuthSuccess({
+                      id: profile.id,
+                      username: profile.username || values.username,
+                      email: profile.email || values.email,
+                      avatarUrl: profile.avatarUrl,
+                      isGuest: false,
+                      lastLogin: new Date().toISOString(),
+                      joinDate: profile.joinDate || new Date().toISOString(),
+                    });
+                  } catch (err) {
+                    console.error("Error parsing userProfile:", err);
+                    // Fallback to basic info
+                    handleAuthSuccess({
+                      username: values.username,
+                      email: values.email,
+                      isGuest: false,
+                      lastLogin: new Date().toISOString(),
+                      joinDate: new Date().toISOString(),
+                    });
+                  }
+                } else {
+                  // Fallback to basic info
+                  handleAuthSuccess({
+                    username: values.username,
+                    email: values.email,
+                    isGuest: false,
+                    lastLogin: new Date().toISOString(),
+                    joinDate: new Date().toISOString(),
+                  });
+                }
+              }}
+              onWalletConnect={handleWalletConnect}
+              onBackToWelcome={() => setCurrentView("main")}
+            />
+          </motion.div>
+        );
       case "main":
         return (
           <motion.div
