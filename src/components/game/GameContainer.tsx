@@ -4,12 +4,19 @@ import NumberDisplay from "./NumberDisplay";
 import GameControls from "./GameControls";
 import GameStats from "./GameStats";
 import ResultsScreen from "./ResultsScreen";
+import { gameStatsService } from "@/lib/gameStatsService";
+import { v4 as uuidv4 } from "uuid";
 
 interface GameContainerProps {
   gameMode?: "solo" | "1v1" | "tournament";
   totalRounds?: number;
   timePerRound?: number;
-  onGameComplete?: (score: number, accuracy: number, avgTime: number) => void;
+  onGameComplete?: (
+    score: number,
+    accuracy: number,
+    avgTime: number,
+    roundDetails?: any[],
+  ) => void;
   onExit?: () => void;
 }
 
@@ -57,6 +64,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Calculate the correct answer (digital root)
   const calculateDigitalRoot = (num: string): number => {
+    if (!num || num.length === 0) return 0;
     if (num.length === 1) return parseInt(num);
     const sum = num.split("").reduce((acc, digit) => acc + parseInt(digit), 0);
     return calculateDigitalRoot(sum.toString());
@@ -64,13 +72,80 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Start a new round
   const startNewRound = () => {
-    setCurrentNumber(generateRandomNumber());
+    const newNumber = generateRandomNumber();
+    setCurrentNumber(newNumber);
     setTimeRemaining(timePerRound);
     setRoundBreak(false);
+    console.log(`Starting round ${currentRound} with number: ${newNumber}`);
+  };
+
+  // Save game stats to database
+  const saveGameStats = async (
+    score: number,
+    accuracy: number,
+    avgTime: number,
+    details: any[],
+  ) => {
+    try {
+      // Get user info from localStorage
+      const savedProfile = localStorage.getItem("userProfile");
+      let userId = undefined;
+      let guestId = undefined;
+
+      if (savedProfile) {
+        const userData = JSON.parse(savedProfile);
+        // Check if it's a guest user or authenticated user
+        if (
+          userData.id === "00000000-0000-0000-0000-000000000000" ||
+          userData.id.startsWith("guest_")
+        ) {
+          guestId = userData.id;
+        } else {
+          userId = userData.id;
+        }
+      }
+
+      // Determine outcome based on game mode
+      let outcome: "Win" | "Loss" | "Draw" | "Completed" = "Completed";
+      if (gameMode !== "solo") {
+        outcome =
+          playerScore > opponentScore
+            ? "Win"
+            : playerScore < opponentScore
+              ? "Loss"
+              : "Draw";
+      }
+
+      // Save game stats
+      const { id, error } = await gameStatsService.saveGameStats({
+        userId,
+        guestId,
+        mode: (gameMode.charAt(0).toUpperCase() + gameMode.slice(1)) as
+          | "Solo"
+          | "1v1"
+          | "Tournament",
+        score,
+        accuracy,
+        timePerRound: avgTime,
+        outcome,
+        opponent: gameMode !== "solo" ? "AI Opponent" : undefined,
+        roundDetails: details,
+      });
+
+      if (error) {
+        console.error("Failed to save game stats:", error);
+      } else {
+        console.log("Game stats saved with ID:", id);
+      }
+    } catch (err) {
+      console.error("Error saving game stats:", err);
+    }
   };
 
   // Handle player answer submission
   const handleAnswerSubmit = (answer: string) => {
+    if (!currentNumber) return; // Guard against undefined number
+
     const correctAnswer = calculateDigitalRoot(currentNumber).toString();
     const isCorrect = answer === correctAnswer;
     const timeUsed = timePerRound - timeRemaining;
@@ -92,6 +167,11 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
     // Update player score
     setPlayerScore((prev) => prev + roundScore);
+
+    // Log for debugging
+    console.log(
+      `Round ${currentRound}: Number ${currentNumber}, Answer: ${answer}, Correct: ${correctAnswer}, isCorrect: ${isCorrect}`,
+    );
 
     // Save round details
     setRoundDetails((prev) => [
@@ -133,19 +213,57 @@ const GameContainer: React.FC<GameContainerProps> = ({
       const avgTime = correctAnswers > 0 ? totalTime / correctAnswers : 0;
       setAccuracy(finalAccuracy);
       setGameActive(false);
+
+      // Save the updated roundDetails with the last round included
+      const updatedRoundDetails = [
+        ...roundDetails,
+        {
+          round: currentRound,
+          number: currentNumber,
+          answer: answer,
+          correctAnswer: correctAnswer,
+          isCorrect: isCorrect,
+          timeTaken: timeUsed,
+          score: roundScore,
+        },
+      ];
+
+      // Update state with the complete round details
+      setRoundDetails(updatedRoundDetails);
       setShowResults(true);
-      onGameComplete(playerScore, finalAccuracy, avgTime);
+
+      // Save game stats to database with complete round details
+      saveGameStats(
+        playerScore + roundScore,
+        finalAccuracy,
+        avgTime,
+        updatedRoundDetails,
+      );
+
+      onGameComplete(
+        playerScore + roundScore,
+        finalAccuracy,
+        avgTime,
+        updatedRoundDetails,
+      );
     }
   };
 
   // Handle skipping a question
   const handleSkip = () => {
+    if (!currentNumber) return; // Guard against undefined number
+
     const correctAnswer = calculateDigitalRoot(currentNumber).toString();
     const timeUsed = timePerRound - timeRemaining;
     const skipPenalty = -1; // -1 point for skipping
 
     // Update player score with skip penalty
     setPlayerScore((prev) => prev + skipPenalty);
+
+    // Log for debugging
+    console.log(
+      `Round ${currentRound}: Number ${currentNumber} SKIPPED, Correct answer was: ${correctAnswer}`,
+    );
 
     // Save round details for the skipped question
     setRoundDetails((prev) => [
@@ -190,8 +308,39 @@ const GameContainer: React.FC<GameContainerProps> = ({
       const avgTime = correctAnswers > 0 ? totalTime / correctAnswers : 0;
       setAccuracy(finalAccuracy);
       setGameActive(false);
+
+      // Save the updated roundDetails with the last round included
+      const updatedRoundDetails = [
+        ...roundDetails,
+        {
+          round: currentRound,
+          number: currentNumber,
+          answer: "skipped",
+          correctAnswer: correctAnswer,
+          isCorrect: false,
+          timeTaken: timeUsed,
+          score: skipPenalty,
+        },
+      ];
+
+      // Update state with the complete round details
+      setRoundDetails(updatedRoundDetails);
       setShowResults(true);
-      onGameComplete(playerScore, finalAccuracy, avgTime);
+
+      // Save game stats to database with complete round details
+      saveGameStats(
+        playerScore + skipPenalty,
+        finalAccuracy,
+        avgTime,
+        updatedRoundDetails,
+      );
+
+      onGameComplete(
+        playerScore + skipPenalty,
+        finalAccuracy,
+        avgTime,
+        updatedRoundDetails,
+      );
     }
   };
 
@@ -259,7 +408,11 @@ const GameContainer: React.FC<GameContainerProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto p-4 space-y-6 bg-gray-50 min-h-[600px] rounded-xl shadow-lg">
+    <div
+      className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto p-4 space-y-6 bg-gray-50 min-h-[600px] rounded-xl shadow-lg"
+      data-testid="game-container"
+      data-round-details={JSON.stringify(roundDetails)}
+    >
       <GameStats
         roundNumber={currentRound}
         totalRounds={totalRounds}
@@ -299,7 +452,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
           >
             <NumberDisplay
               number={currentNumber}
-              isAnimated={true}
+              isAnimated={!roundBreak}
               size="large"
               isRevealed={true}
             />

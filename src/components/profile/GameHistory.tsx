@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
@@ -8,6 +8,7 @@ import {
   TableCell,
 } from "../ui/table";
 import { Badge } from "../ui/badge";
+import { gameStatsService, GameRecord } from "@/lib/gameStatsService";
 
 interface GameHistoryProps {
   games?: GameRecord[];
@@ -25,7 +26,65 @@ interface GameRecord {
 }
 
 const GameHistory = ({ games = [] }: GameHistoryProps) => {
-  // Default mock data if no games are provided
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
+
+  useEffect(() => {
+    // If games are provided as props, use them instead of fetching
+    if (games.length > 0) {
+      setGameHistory(games);
+      return;
+    }
+
+    // Otherwise, fetch game history from the database
+    const fetchGameHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Get user info from localStorage
+        const savedProfile = localStorage.getItem("userProfile");
+        let userId = undefined;
+        let guestId = undefined;
+
+        if (savedProfile) {
+          const userData = JSON.parse(savedProfile);
+          // Check if it's a guest user or authenticated user
+          if (
+            userData.id === "00000000-0000-0000-0000-000000000000" ||
+            userData.id.startsWith("guest_")
+          ) {
+            guestId = userData.id;
+          } else {
+            userId = userData.id;
+          }
+
+          // Fetch game history
+          const { games, error } = await gameStatsService.getGameHistory(
+            userId,
+            guestId,
+          );
+
+          if (error) {
+            console.error("Error fetching game history:", error);
+            setError("Failed to load game history");
+          } else {
+            setGameHistory(games);
+          }
+        }
+      } catch (err) {
+        console.error("Exception in fetchGameHistory:", err);
+        setError("An unexpected error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGameHistory();
+  }, [games]);
+
+  // Default mock data if no games are provided and none are fetched
   const defaultGames: GameRecord[] = [
     {
       id: "1",
@@ -76,7 +135,13 @@ const GameHistory = ({ games = [] }: GameHistoryProps) => {
     },
   ];
 
-  const displayGames = games.length > 0 ? games : defaultGames;
+  // Use fetched games if available, otherwise use provided games or default games
+  const displayGames =
+    gameHistory.length > 0
+      ? gameHistory
+      : games.length > 0
+        ? games
+        : defaultGames;
 
   // Function to get badge variant based on outcome
   const getOutcomeBadgeVariant = (outcome: string) => {
@@ -106,46 +171,57 @@ const GameHistory = ({ games = [] }: GameHistoryProps) => {
     <div className="w-full bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold mb-4">Game History</h2>
 
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Mode</TableHead>
-              <TableHead>Score</TableHead>
-              <TableHead>Outcome</TableHead>
-              <TableHead>Opponent</TableHead>
-              <TableHead>Accuracy</TableHead>
-              <TableHead>Avg. Time</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayGames.map((game) => (
-              <TableRow key={game.id}>
-                <TableCell>{formatDate(game.date)}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{game.mode}</Badge>
-                </TableCell>
-                <TableCell className="font-medium">{game.score}</TableCell>
-                <TableCell>
-                  <Badge variant={getOutcomeBadgeVariant(game.outcome)}>
-                    {game.outcome}
-                  </Badge>
-                </TableCell>
-                <TableCell>{game.opponent || "-"}</TableCell>
-                <TableCell>
-                  {game.accuracy ? `${game.accuracy}%` : "-"}
-                </TableCell>
-                <TableCell>
-                  {game.timePerRound ? `${game.timePerRound}s` : "-"}
-                </TableCell>
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading game history...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500">
+          <p>{error}</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Mode</TableHead>
+                <TableHead>Score</TableHead>
+                <TableHead>Outcome</TableHead>
+                <TableHead>Opponent</TableHead>
+                <TableHead>Accuracy</TableHead>
+                <TableHead>Avg. Time</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {displayGames.map((game) => (
+                <TableRow key={game.id}>
+                  <TableCell>{formatDate(game.date)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{game.mode}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{game.score}</TableCell>
+                  <TableCell>
+                    <Badge variant={getOutcomeBadgeVariant(game.outcome)}>
+                      {game.outcome}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{game.opponent || "-"}</TableCell>
+                  <TableCell>
+                    {game.accuracy ? `${game.accuracy}%` : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {game.timePerRound ? `${game.timePerRound}s` : "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
-      {displayGames.length === 0 && (
+      {!loading && !error && displayGames.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No game history available
         </div>

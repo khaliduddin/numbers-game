@@ -10,6 +10,7 @@ import GameHistory from "./GameHistory";
 import ProfileForm from "./ProfileForm";
 import { supabase } from "@/lib/supabase";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
+import { gameStatsService, GameRecord } from "@/lib/gameStatsService";
 import { AuthUser } from "@/services/authService";
 
 interface ProfileViewProps {
@@ -37,6 +38,9 @@ interface Achievement {
 
 const ProfileView = ({ user: propUser }: ProfileViewProps) => {
   const [activeTab, setActiveTab] = useState("stats");
+  const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
+  const [gameHistoryLoading, setGameHistoryLoading] = useState(false);
+  const [gameHistoryError, setGameHistoryError] = useState<string | null>(null);
 
   const [user, setUser] = useState<ProfileViewProps["user"]>({
     id: "00000000-0000-0000-0000-000000000000", // Using a valid UUID format for guest users
@@ -122,6 +126,43 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
 
     fetchUserProfile();
   }, [propUser]);
+
+  // Fetch game history when user changes
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const fetchGameHistory = async () => {
+      try {
+        setGameHistoryLoading(true);
+        setGameHistoryError(null);
+
+        // Check if it's a guest user or authenticated user
+        const isGuest =
+          user.id === "00000000-0000-0000-0000-000000000000" ||
+          (user.id && user.id.startsWith("guest_"));
+
+        // Fetch game history using the appropriate ID
+        const { games, error } = await gameStatsService.getGameHistory(
+          isGuest ? undefined : user.id,
+          isGuest ? user.id : undefined,
+        );
+
+        if (error) {
+          console.error("Error fetching game history:", error);
+          setGameHistoryError("Failed to load game history");
+        } else {
+          setGameHistory(games);
+        }
+      } catch (err) {
+        console.error("Exception in fetchGameHistory:", err);
+        setGameHistoryError("An unexpected error occurred");
+      } finally {
+        setGameHistoryLoading(false);
+      }
+    };
+
+    fetchGameHistory();
+  }, [user, loading]);
 
   // Format date to be more readable
   const formatDate = (dateString: string) => {
@@ -283,7 +324,11 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         </TabsContent>
 
         <TabsContent value="history">
-          <GameHistory />
+          <GameHistory
+            games={gameHistory}
+            loading={gameHistoryLoading}
+            error={gameHistoryError}
+          />
         </TabsContent>
 
         <TabsContent value="achievements">

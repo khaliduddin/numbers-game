@@ -92,6 +92,19 @@ const SignupForm = ({
       // Show verification email sent message
       setVerificationSent(true);
 
+      // Clear any showAuth flag to prevent login loop
+      localStorage.removeItem("showAuth");
+      // Set hasVisitedWelcome to true
+      localStorage.setItem("hasVisitedWelcome", "true");
+      // Force currentView to main in Home component
+      setTimeout(() => {
+        const mainViewEvent = new CustomEvent("changeView", {
+          detail: { view: "main" },
+          bubbles: true,
+          cancelable: true,
+        });
+        document.dispatchEvent(mainViewEvent);
+      }, 0);
       // Call the onSubmit prop with the form values
       onSubmit(values);
     } catch (err) {

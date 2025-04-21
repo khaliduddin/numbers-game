@@ -156,6 +156,19 @@ const LoginForm = ({
         throw new Error(error.message);
       }
 
+      // Clear any showAuth flag to prevent login loop
+      localStorage.removeItem("showAuth");
+      // Set hasVisitedWelcome to true
+      localStorage.setItem("hasVisitedWelcome", "true");
+      // Force currentView to main in Home component
+      setTimeout(() => {
+        const mainViewEvent = new CustomEvent("changeView", {
+          detail: { view: "main" },
+          bubbles: true,
+          cancelable: true,
+        });
+        document.dispatchEvent(mainViewEvent);
+      }, 0);
       await onSubmit(values);
     } catch (error) {
       console.error("Login error:", error);

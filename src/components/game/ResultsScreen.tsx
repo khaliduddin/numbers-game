@@ -93,7 +93,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
           <CardHeader className="text-center bg-gradient-to-r from-blue-500 to-purple-600 text-white">
             <motion.div variants={itemVariants}>
               <CardTitle className="text-3xl font-bold mb-2">
-                {isWinner ? "Victory!" : "Game Over"}
+                {isWinner ? "You did it!" : "Game Over"}
               </CardTitle>
               <CardDescription className="text-white/90 text-lg">
                 {gameMode === "solo"
@@ -176,6 +176,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
                       <th className="px-2 py-1 text-left">Round</th>
                       <th className="px-2 py-1 text-left">Number</th>
                       <th className="px-2 py-1 text-left">Answer</th>
+                      <th className="px-2 py-1 text-left">Correct</th>
                       <th className="px-2 py-1 text-left">Time</th>
                       <th className="px-2 py-1 text-right">Score</th>
                     </tr>
@@ -201,10 +202,14 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
                                   : "text-red-600"
                               }
                             >
-                              {detail.answer}{" "}
-                              {!detail.isCorrect && `(${detail.correctAnswer})`}
+                              {detail.answer}
                             </span>
                           )}
+                        </td>
+                        <td className="px-2 py-1">
+                          <span className="font-medium">
+                            {detail.correctAnswer}
+                          </span>
                         </td>
                         <td className="px-2 py-1">
                           {detail.timeTaken.toFixed(1)}s

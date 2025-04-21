@@ -1,31 +1,43 @@
 import { Suspense, useState, useEffect, useContext } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
 import Home from "./components/home";
-import WelcomeScreen from "./components/WelcomeScreen";
+import AuthContainer from "./components/auth/AuthContainer";
 import routes from "tempo-routes";
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
 
-  // Check if user has already been through welcome screen
+  // Check if user exists in localStorage
   useEffect(() => {
-    const hasVisited = localStorage.getItem("hasVisitedWelcome");
-    if (hasVisited === "true") {
+    const user = localStorage.getItem("user");
+    // Skip welcome screen if user exists
+    if (user) {
       setShowWelcome(false);
+    } else {
+      // Clean up any leftover flags if no user exists
+      localStorage.removeItem("hasVisitedWelcome");
+      localStorage.removeItem("showAuth");
     }
   }, []);
 
   // Listen for sign out event
   useEffect(() => {
     const handleSignOut = (event: CustomEvent) => {
-      if (event.detail?.view === "signout") {
-        // Clear user data from localStorage
-        localStorage.removeItem("user");
-        localStorage.removeItem("userProfile");
-        localStorage.removeItem("showAuth");
-        // Keep hasVisitedWelcome so they don't have to go through welcome again
-        // unless they want to switch accounts
-        setShowWelcome(true);
+      try {
+        if (event.detail?.view === "signout") {
+          // Clear user data from localStorage
+          localStorage.removeItem("user");
+          localStorage.removeItem("userProfile");
+          localStorage.removeItem("showAuth");
+          // Keep hasVisitedWelcome so they don't have to go through welcome again
+          // unless they want to switch accounts
+          setShowWelcome(true);
+        }
+        // Explicitly return undefined to avoid Promise issues
+        return undefined;
+      } catch (error) {
+        console.error("Error in handleSignOut:", error);
+        return undefined;
       }
     };
 
@@ -40,22 +52,22 @@ function App() {
   }, []);
 
   const handleGuestLogin = () => {
-    localStorage.setItem("hasVisitedWelcome", "true");
     // Create a basic guest user in localStorage
     const guestUser = {
       username: "Guest",
       isGuest: true,
       lastLogin: new Date().toISOString(),
+      guestId: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     };
     localStorage.setItem("user", JSON.stringify(guestUser));
     setShowWelcome(false);
   };
 
   const handleSignInClick = () => {
-    localStorage.setItem("hasVisitedWelcome", "true");
+    // No need to set hasVisitedWelcome anymore
     setShowWelcome(false);
     // The Home component will show the auth screen
-    localStorage.setItem("showAuth", "true");
+    localStorage.setItem("showAuth", "false");
   };
 
   // Call useRoutes hook unconditionally to maintain hook order
@@ -65,10 +77,15 @@ function App() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
       {showWelcome ? (
-        <WelcomeScreen
-          onGuestLogin={handleGuestLogin}
-          onSignInClick={handleSignInClick}
-        />
+        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 p-4">
+          <AuthContainer
+            onGuestLogin={handleGuestLogin}
+            onLogin={() => handleSignInClick()}
+            onSignup={() => handleSignInClick()}
+            showWelcomeTitle={true}
+            defaultTab="login"
+          />
+        </div>
       ) : (
         <>
           <Routes>

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import WalletConnect from "./WalletConnect";
-import { Wallet, Mail, User, ArrowLeft } from "lucide-react";
+import { Wallet, Mail, User, ArrowLeft, Zap } from "lucide-react";
 
 interface AuthContainerProps {
   onLogin?: (values: { email: string; password: string }) => void;
@@ -16,22 +16,29 @@ interface AuthContainerProps {
     confirmPassword: string;
   }) => void;
   onWalletConnect?: (walletAddress: string) => void;
+  onGuestLogin?: () => void;
   onBackToWelcome?: () => void;
   defaultTab?: "login" | "signup" | "wallet";
+  showWelcomeTitle?: boolean;
 }
 
 const AuthContainer = ({
   onLogin = () => {},
   onSignup = () => {},
   onWalletConnect = () => {},
+  onGuestLogin = () => {},
   onBackToWelcome = () => {},
   defaultTab = "login",
+  showWelcomeTitle = false,
 }: AuthContainerProps) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
 
   const handleLogin = (values: { email: string; password: string }) => {
+    // After successful login, remove showAuth flag to prevent login loop
+    localStorage.removeItem("showAuth");
+    // Call the onLogin handler passed from parent
     onLogin(values);
   };
 
@@ -45,34 +52,52 @@ const AuthContainer = ({
   };
 
   const handleWalletConnect = (address: string) => {
-    if (address) {
-      setIsWalletConnected(true);
-      setWalletAddress(address);
-    } else {
-      setIsWalletConnected(false);
-      setWalletAddress("");
+    try {
+      if (address) {
+        setIsWalletConnected(true);
+        setWalletAddress(address);
+      } else {
+        setIsWalletConnected(false);
+        setWalletAddress("");
+      }
+      // Call the callback synchronously to avoid Promise issues
+      onWalletConnect(address);
+      return undefined;
+    } catch (error) {
+      console.error("Error in handleWalletConnect:", error);
+      return undefined;
     }
-    onWalletConnect(address);
   };
 
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
       <div className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBackToWelcome}
-            className="flex items-center gap-1 text-xs"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            Back
-          </Button>
-          <h1 className="text-xl sm:text-2xl font-bold text-center flex-1">
-            Web3 Number Game
-          </h1>
-          <div className="w-12"></div> {/* Spacer for balance */}
-        </div>
+        {showWelcomeTitle ? (
+          <CardHeader className="text-center pb-2 px-0">
+            <CardTitle className="text-2xl font-bold text-primary">
+              Welcome to Web3 Number Game
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Test your mental math skills and compete with players worldwide
+            </p>
+          </CardHeader>
+        ) : (
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBackToWelcome}
+              className="flex items-center gap-1 text-xs"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Back
+            </Button>
+            <h1 className="text-xl sm:text-2xl font-bold text-center flex-1">
+              Web3 Number Game
+            </h1>
+            <div className="w-12"></div> {/* Spacer for balance */}
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-3 mb-4 sm:mb-6">
@@ -105,13 +130,38 @@ const AuthContainer = ({
           <Card>
             <CardContent className="p-0">
               <TabsContent value="login" className="mt-0">
-                <LoginForm
-                  onSubmit={handleLogin}
-                  onSignUpClick={() => setActiveTab("signup")}
-                  onForgotPassword={() =>
-                    console.log("Forgot password clicked")
-                  }
-                />
+                <div className="p-4 sm:p-6">
+                  {showWelcomeTitle && (
+                    <div className="mb-4">
+                      <Button
+                        onClick={onGuestLogin}
+                        variant="outline"
+                        className="w-full h-14 border-2 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all mb-2"
+                      >
+                        <Zap className="mr-2 h-5 w-5" />
+                        Play as Guest
+                      </Button>
+                      <p className="text-xs text-center text-muted-foreground mb-4">
+                        Quick start without registration
+                      </p>
+
+                      <div className="relative flex items-center py-2 mb-4">
+                        <div className="flex-grow border-t border-gray-300"></div>
+                        <span className="flex-shrink mx-3 text-sm text-gray-500">
+                          or
+                        </span>
+                        <div className="flex-grow border-t border-gray-300"></div>
+                      </div>
+                    </div>
+                  )}
+                  <LoginForm
+                    onSubmit={handleLogin}
+                    onSignUpClick={() => setActiveTab("signup")}
+                    onForgotPassword={() =>
+                      console.log("Forgot password clicked")
+                    }
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="signup" className="mt-0">

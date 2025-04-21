@@ -25,7 +25,7 @@ const Home = () => {
     const showAuth = localStorage.getItem("showAuth");
     if (showAuth === "true") {
       setCurrentView("auth");
-      localStorage.removeItem("showAuth"); // Clear the flag
+      // Don't remove the flag here, it will be removed after successful login
     }
 
     // Check if user exists in localStorage
@@ -107,17 +107,24 @@ const Home = () => {
 
   // Handle view changes from custom events
   const handleViewChange = useCallback((event: CustomEvent) => {
-    const { view, mode } = event.detail;
-    console.log("View change event received:", view, mode);
-    setCurrentView(view);
-    if (mode) {
-      setGameMode(mode as "solo" | "1v1" | "tournament");
-      // Set duelSetupActive to true when 1v1 mode is selected
-      if (mode === "1v1") {
-        setDuelSetupActive(true);
-      } else {
-        setDuelSetupActive(false);
+    try {
+      const { view, mode } = event.detail;
+      console.log("View change event received:", view, mode);
+      setCurrentView(view);
+      if (mode) {
+        setGameMode(mode as "solo" | "1v1" | "tournament");
+        // Set duelSetupActive to true when 1v1 mode is selected
+        if (mode === "1v1") {
+          setDuelSetupActive(true);
+        } else {
+          setDuelSetupActive(false);
+        }
       }
+      // Return undefined instead of implicitly returning a Promise
+      return undefined;
+    } catch (error) {
+      console.error("Error in handleViewChange:", error);
+      return undefined;
     }
   }, []);
 
@@ -128,22 +135,34 @@ const Home = () => {
     document.addEventListener("changeView", eventListener);
 
     // Add event listener for logout
-    const logoutListener = () => handleLogout();
+    const logoutListener = () => {
+      handleLogout();
+      // Explicitly return undefined to avoid Promise issues
+      return undefined;
+    };
     document.addEventListener("logout", logoutListener);
 
     console.log("Event listeners for changeView and logout added");
 
     // For debugging
-    document.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      if (target.textContent?.includes("Play Now")) {
-        console.log("Play Now button clicked");
+    const clickListener = (e: MouseEvent) => {
+      try {
+        const target = e.target as HTMLElement;
+        if (target.textContent?.includes("Play Now")) {
+          console.log("Play Now button clicked");
+        }
+        return undefined;
+      } catch (error) {
+        console.error("Error in click listener:", error);
+        return undefined;
       }
-    });
+    };
+    document.addEventListener("click", clickListener);
 
     return () => {
       document.removeEventListener("changeView", eventListener);
       document.removeEventListener("logout", logoutListener);
+      document.removeEventListener("click", clickListener);
       console.log("Event listeners for changeView and logout removed");
     };
   }, [handleViewChange]);
@@ -224,7 +243,25 @@ const Home = () => {
     // Save user data and navigate to main menu
     localStorage.setItem("user", JSON.stringify(userData));
     setUsername(userData.username || "User");
+    // Force view to main and clear any auth flags
+    localStorage.removeItem("showAuth");
     setCurrentView("main");
+  };
+
+  const handleGuestLogin = () => {
+    // Create a basic guest user in localStorage
+    const guestUser = {
+      username: "Guest",
+      isGuest: true,
+      lastLogin: new Date().toISOString(),
+      guestId: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    };
+    localStorage.setItem("user", JSON.stringify(guestUser));
+    setUsername("Guest");
+    setCurrentView("main");
+
+    // Update profile in Supabase
+    updateUserProfile(guestUser);
   };
 
   const renderView = () => {
@@ -311,8 +348,10 @@ const Home = () => {
                   });
                 }
               }}
+              onGuestLogin={handleGuestLogin}
               onWalletConnect={handleWalletConnect}
               onBackToWelcome={() => setCurrentView("main")}
+              showWelcomeTitle={false}
             />
           </motion.div>
         );
