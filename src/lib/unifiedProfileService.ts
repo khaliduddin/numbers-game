@@ -250,6 +250,12 @@ export const unifiedProfileService = {
           bestScore: 0,
           accuracy: 0,
         },
+        xp: profile.xp || {
+          solo: 0,
+          duel: 0,
+          tournament: 0,
+        },
+        level: profile.level || 0,
       });
 
     if (insertError) {

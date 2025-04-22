@@ -257,40 +257,48 @@ const GameContainer: React.FC<GameContainerProps> = ({
     const timeUsed = timePerRound - timeRemaining;
     const skipPenalty = -1; // -1 point for skipping
 
+    // Calculate the final player score including this skip penalty
+    const updatedPlayerScore = playerScore + skipPenalty;
     // Update player score with skip penalty
-    setPlayerScore((prev) => prev + skipPenalty);
+    setPlayerScore(updatedPlayerScore);
 
     // Log for debugging
     console.log(
       `Round ${currentRound}: Number ${currentNumber} SKIPPED, Correct answer was: ${correctAnswer}`,
     );
 
-    // Save round details for the skipped question
-    setRoundDetails((prev) => [
-      ...prev,
-      {
-        round: currentRound,
-        number: currentNumber,
-        answer: "skipped",
-        correctAnswer: correctAnswer,
-        isCorrect: false,
-        timeTaken: timeUsed,
-        score: skipPenalty,
-      },
-    ]);
+    // Create the current round details object
+    const currentRoundDetails = {
+      round: currentRound,
+      number: currentNumber,
+      answer: "skipped",
+      correctAnswer: correctAnswer,
+      isCorrect: false,
+      timeTaken: timeUsed,
+      score: skipPenalty,
+    };
+
+    // Create updated round details including the current round
+    const updatedRoundDetails = [...roundDetails, currentRoundDetails];
+
+    // Save round details to state
+    setRoundDetails(updatedRoundDetails);
 
     // In multiplayer modes, simulate opponent scoring independently
     // (Skip only affects the current player, not the opponent)
+    let updatedOpponentScore = opponentScore;
     if (gameMode !== "solo") {
       // Opponent still gets a chance to answer
       const opponentCorrect = Math.random() > 0.3; // 70% chance opponent is correct
       if (opponentCorrect) {
         const opponentTimeUsed = Math.random() * (timePerRound - 1) + 1; // Random time between 1-9 seconds
         const opponentRoundScore = 10; // Same scoring rules for opponent
-        setOpponentScore((prev) => prev + opponentRoundScore);
+        updatedOpponentScore = opponentScore + opponentRoundScore;
+        setOpponentScore(updatedOpponentScore);
       } else {
         // Opponent gets their own answer wrong
-        setOpponentScore((prev) => prev - 5); // Opponent gets wrong answer (-5 points)
+        updatedOpponentScore = opponentScore - 5;
+        setOpponentScore(updatedOpponentScore); // Opponent gets wrong answer (-5 points)
       }
     }
 
@@ -304,39 +312,23 @@ const GameContainer: React.FC<GameContainerProps> = ({
       }, 5000);
     } else {
       // End game
-      const finalAccuracy = (correctAnswers / currentRound) * 100;
+      const finalAccuracy = (correctAnswers / totalRounds) * 100;
       const avgTime = correctAnswers > 0 ? totalTime / correctAnswers : 0;
       setAccuracy(finalAccuracy);
       setGameActive(false);
-
-      // Save the updated roundDetails with the last round included
-      const updatedRoundDetails = [
-        ...roundDetails,
-        {
-          round: currentRound,
-          number: currentNumber,
-          answer: "skipped",
-          correctAnswer: correctAnswer,
-          isCorrect: false,
-          timeTaken: timeUsed,
-          score: skipPenalty,
-        },
-      ];
-
-      // Update state with the complete round details
-      setRoundDetails(updatedRoundDetails);
       setShowResults(true);
 
       // Save game stats to database with complete round details
+      // Use the updatedRoundDetails directly instead of state which might not be updated yet
       saveGameStats(
-        playerScore + skipPenalty,
+        updatedPlayerScore,
         finalAccuracy,
         avgTime,
         updatedRoundDetails,
       );
 
       onGameComplete(
-        playerScore + skipPenalty,
+        updatedPlayerScore,
         finalAccuracy,
         avgTime,
         updatedRoundDetails,

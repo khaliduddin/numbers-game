@@ -9,6 +9,7 @@ import StatsOverview from "./StatsOverview";
 import GameHistory from "./GameHistory";
 import ProfileForm from "./ProfileForm";
 import { supabase } from "@/lib/supabase";
+import { Progress } from "../ui/progress";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
 import { gameStatsService, GameRecord } from "@/lib/gameStatsService";
 import { AuthUser } from "@/services/authService";
@@ -38,6 +39,9 @@ interface Achievement {
 
 const ProfileView = ({ user: propUser }: ProfileViewProps) => {
   const [activeTab, setActiveTab] = useState("stats");
+  const [activeGameMode, setActiveGameMode] = useState<
+    "Solo" | "1v1" | "Tournament"
+  >("Solo");
   const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
   const [gameHistoryLoading, setGameHistoryLoading] = useState(false);
   const [gameHistoryError, setGameHistoryError] = useState<string | null>(null);
@@ -320,7 +324,48 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         </TabsList>
 
         <TabsContent value="stats" className="space-y-3 sm:space-y-4">
-          <StatsOverview />
+          <div className="mb-4">
+            <div className="flex space-x-2">
+              <Button
+                variant={activeGameMode === "Solo" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveGameMode("Solo")}
+              >
+                Solo
+              </Button>
+              <Button
+                variant={activeGameMode === "1v1" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveGameMode("1v1")}
+              >
+                1v1
+              </Button>
+              <Button
+                variant={
+                  activeGameMode === "Tournament" ? "default" : "outline"
+                }
+                size="sm"
+                onClick={() => setActiveGameMode("Tournament")}
+              >
+                Tournament
+              </Button>
+            </div>
+          </div>
+          <StatsOverview
+            gameMode={activeGameMode}
+            userId={
+              user.id !== "00000000-0000-0000-0000-000000000000" &&
+              !user.id?.startsWith("guest_")
+                ? user.id
+                : undefined
+            }
+            guestId={
+              user.id === "00000000-0000-0000-0000-000000000000" ||
+              user.id?.startsWith("guest_")
+                ? user.id
+                : undefined
+            }
+          />
         </TabsContent>
 
         <TabsContent value="history">
