@@ -278,6 +278,39 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Member since {formatDate(user.joinDate)}
           </p>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Your Referral Code
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">
+                  {user.referralCode || "N/A"}
+                </p>
+                {user.referralCode && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => {
+                      const referralLink = `${window.location.origin}?ref=${user.referralCode}`;
+                      navigator.clipboard.writeText(referralLink);
+                      toast({
+                        title: "Copied!",
+                        description: "Referral link copied to clipboard",
+                      });
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Share your code with friends to earn XP when they use it
+            </p>
+          </div>
         </div>
 
         <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end">

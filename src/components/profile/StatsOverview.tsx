@@ -50,15 +50,15 @@ interface GameStats {
 
 const StatsOverview = ({
   stats = {
-    wins: 42,
-    losses: 18,
-    totalGames: 60,
-    averageScore: 85,
-    bestScore: 98,
-    fastestTime: "1.2s",
-    accuracy: 92,
+    wins: 0,
+    losses: 0,
+    totalGames: 0,
+    averageScore: 0,
+    bestScore: 0,
+    fastestTime: "N/A",
+    accuracy: 0,
     level: 0,
-    xpProgress: 68,
+    xpProgress: 0,
   },
   gameMode = "All",
   userId,
@@ -146,11 +146,23 @@ const StatsOverview = ({
       }
 
       // Update game stats with level and XP data
-      setGameStats((prev) => ({
-        ...prev,
-        level,
-        xpProgress,
-      }));
+      console.log("Setting level and xpProgress:", level, xpProgress);
+      setGameStats((prev) => {
+        const updatedStats = {
+          ...(prev || {}),
+          level,
+          xpProgress,
+          wins: prev?.wins || 0,
+          losses: prev?.losses || 0,
+          totalGames: prev?.totalGames || 0,
+          averageScore: prev?.averageScore || 0,
+          bestScore: prev?.bestScore || 0,
+          fastestTime: prev?.fastestTime || "N/A",
+          accuracy: prev?.accuracy || 0,
+        };
+        console.log("Updated game stats:", updatedStats);
+        return updatedStats;
+      });
     } catch (error) {
       console.error("Error in fetchUserProfile:", error);
     }
@@ -309,19 +321,32 @@ const StatsOverview = ({
     // Use fetched game stats if available, otherwise use default stats
     const displayStats = gameStats ? gameStats : stats;
 
+    // Create a safe version of displayStats with fallback values
+    const safeStats = {
+      wins: displayStats.wins || 0,
+      losses: displayStats.losses || 0,
+      totalGames: displayStats.totalGames || 0,
+      averageScore: displayStats.averageScore || 0,
+      bestScore: displayStats.bestScore || 0,
+      fastestTime: displayStats.fastestTime || "N/A",
+      accuracy: displayStats.accuracy || 0,
+      level: displayStats.level || 0,
+      xpProgress: displayStats.xpProgress || 0,
+    };
+
     const commonCards = [
       <StatCard
         key="accuracy"
         icon={<Target className="h-5 w-5 text-blue-500" />}
         title="Accuracy"
-        value={`${displayStats.accuracy}%`}
+        value={`${safeStats.accuracy}%`}
         description="Average calculation accuracy"
       />,
       <StatCard
         key="fastestTime"
         icon={<Clock className="h-5 w-5 text-green-500" />}
         title="Fastest Time"
-        value={displayStats.fastestTime}
+        value={safeStats.fastestTime}
         description="Best response time"
       />,
     ];
@@ -331,21 +356,21 @@ const StatsOverview = ({
         key="averageScore"
         icon={<Zap className="h-5 w-5 text-purple-500" />}
         title="Average Score"
-        value={(displayStats.averageScore || 0).toString()}
+        value={safeStats.averageScore.toString()}
         description="Points per game"
       />,
       <StatCard
         key="bestScore"
         icon={<Award className="h-5 w-5 text-red-500" />}
         title="Best Score"
-        value={(displayStats.bestScore || 0).toString()}
+        value={safeStats.bestScore.toString()}
         description="Personal record"
       />,
       <StatCard
         key="totalGames"
         icon={<BarChart2 className="h-5 w-5 text-indigo-500" />}
         title="Total Games"
-        value={(displayStats.totalGames || 0).toString()}
+        value={safeStats.totalGames.toString()}
         description="Games played"
       />,
     ];
@@ -368,8 +393,8 @@ const StatsOverview = ({
     } else {
       // Calculate win rate from the current stats
       const currentWinRate =
-        displayStats.totalGames > 0
-          ? Math.round((displayStats.wins / displayStats.totalGames) * 100)
+        safeStats.totalGames > 0
+          ? Math.round((safeStats.wins / safeStats.totalGames) * 100)
           : 0;
 
       return {
@@ -427,7 +452,11 @@ const StatsOverview = ({
               </span>
             </div>
             <Progress
-              value={gameStats?.xpProgress || stats.xpProgress}
+              value={
+                gameStats?.xpProgress !== undefined
+                  ? gameStats.xpProgress
+                  : stats.xpProgress
+              }
               className="h-2"
             />
           </div>
