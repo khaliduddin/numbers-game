@@ -4,11 +4,10 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import { Settings, Share2, Trophy, History, Medal } from "lucide-react";
+import { Settings, Share2, Trophy, History, Medal, Copy } from "lucide-react";
 import StatsOverview from "./StatsOverview";
 import GameHistory from "./GameHistory";
 import ProfileForm from "./ProfileForm";
-import { supabase } from "@/lib/supabase";
 import { Progress } from "../ui/progress";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
 import { gameStatsService, GameRecord } from "@/lib/gameStatsService";
@@ -221,7 +220,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     // Save to localStorage
     localStorage.setItem("userProfile", JSON.stringify(updatedUser));
 
-    // Save to Supabase using unified profile service
+    // Save to Firebase using unified profile service
     try {
       const { profile, error } = await unifiedProfileService.saveProfile({
         id: updatedUser.id,
@@ -242,7 +241,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
       });
 
       if (error) {
-        console.error("Error saving profile to Supabase:", error);
+        console.error("Error saving profile to Firebase:", error);
       }
 
       // If profile was returned, update the user object
@@ -254,7 +253,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
       setUser(updatedUser);
     } catch (err) {
       console.error("Error using unifiedProfileService:", err);
-      // Continue without Supabase integration if there's an error
+      // Continue without Firebase integration if there's an error
       setUser(updatedUser);
     }
   };
@@ -295,10 +294,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
                     onClick={() => {
                       const referralLink = `${window.location.origin}?ref=${user.referralCode}`;
                       navigator.clipboard.writeText(referralLink);
-                      toast({
-                        title: "Copied!",
-                        description: "Referral link copied to clipboard",
-                      });
+                      alert("Referral link copied to clipboard");
                     }}
                   >
                     <Copy className="h-3 w-3 mr-1" />

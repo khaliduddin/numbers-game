@@ -23,10 +23,30 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error("Missing Supabase credentials:", {
+        urlExists: !!supabaseUrl,
+        keyExists: !!supabaseServiceRoleKey,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Supabase credentials not found",
+          details: {
+            urlExists: !!supabaseUrl,
+            keyExists: !!supabaseServiceRoleKey,
+          },
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const { email, otp, username } = (await req.json()) as RequestBody;
 

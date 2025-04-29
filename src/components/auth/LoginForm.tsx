@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { authService } from "@/services/authService";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
 
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,11 @@ const LoginForm = ({
     );
     if (email) {
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}`,
-        });
-        if (error) throw error;
-        alert("Password reset email sent! Please check your inbox.");
+        // This would need to be implemented with Firebase Auth
+        // For now, just show an alert
+        alert(
+          "Password reset functionality will be implemented with Firebase Auth",
+        );
       } catch (error) {
         console.error("Error sending reset email:", error);
         alert("Failed to send reset email. Please try again.");
@@ -69,17 +69,17 @@ const LoginForm = ({
     setIsLoading(true);
     setLoginError(null);
     try {
-      // Use Supabase authentication directly
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Use Firebase authentication through authService
+      const userData = await authService.login({
         email: values.email,
         password: values.password,
       });
 
       // If login successful, get the user profile
-      if (!error && data.user) {
+      if (userData) {
         // Get the user profile from unified_profiles
         const { profile } = await unifiedProfileService.getProfile(
-          data.user.id,
+          userData.id,
           false, // Explicitly set isGuest to false for auth users
         );
 
@@ -112,7 +112,7 @@ const LoginForm = ({
           // Create profile in unified_profiles
           const { profile: newProfile } =
             await unifiedProfileService.saveProfile({
-              id: data.user.id,
+              id: userData.id,
               username,
               email: values.email,
               avatarUrl,
@@ -144,18 +144,6 @@ const LoginForm = ({
         }
       }
 
-      if (error) {
-        // Handle specific error cases
-        if (error.message.includes("Email not confirmed")) {
-          setLoginError("Please verify your email before signing in.");
-        } else if (error.message.includes("Invalid login credentials")) {
-          setLoginError("Invalid email or password. Please try again.");
-        } else {
-          setLoginError(error.message);
-        }
-        throw new Error(error.message);
-      }
-
       // Clear any showAuth flag to prevent login loop
       localStorage.removeItem("showAuth");
       // Set hasVisitedWelcome to true
@@ -172,7 +160,9 @@ const LoginForm = ({
       await onSubmit(values);
     } catch (error) {
       console.error("Login error:", error);
-      // Error is already handled above
+      setLoginError(
+        error instanceof Error ? error.message : "Failed to sign in",
+      );
     } finally {
       setIsLoading(false);
     }

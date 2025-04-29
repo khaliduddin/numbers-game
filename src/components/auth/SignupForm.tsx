@@ -143,11 +143,11 @@ const SignupForm = ({
         .gt("expires_at", new Date().toISOString())
         .single();
 
-      if (!isValid) {
+      if (!data || error) {
         throw new Error("Invalid or expired verification code");
       }
 
-      // Clear OTP from localStorage
+      // OTP is valid, clear it from storage
       localStorage.removeItem(`otp_${form.getValues().email}`);
 
       // OTP is valid, get the user session
@@ -168,18 +168,13 @@ const SignupForm = ({
       // Get user data
       const { data: userData } = await supabase.auth.getUser();
 
-      if (!userData.user) {
-        throw new Error("Failed to get user data");
-      }
-
       // Store the user profile in localStorage
       localStorage.setItem(
         "userProfile",
         JSON.stringify({
-          id: userData.user.id,
-          username: userData.user.user_metadata.username,
-          email: userData.user.email,
-          avatarUrl: userData.user.user_metadata.avatar_url,
+          username: form.getValues().username,
+          email: form.getValues().email,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${form.getValues().username}`,
           joinDate: new Date().toISOString(),
           isGuest: false,
         }),

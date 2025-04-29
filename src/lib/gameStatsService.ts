@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { firebaseGameStatsService } from "./firebaseServices";
 
 export interface GameStats {
   id?: string;
@@ -75,92 +75,36 @@ export const gameStatsService = {
     stats: GameStats,
   ): Promise<{ id: string | null; error: any }> {
     try {
-      // First, save the game stats
-      const { data, error } = await supabase
-        .from("game_stats")
-        .insert({
-          user_id: stats.userId,
-          guest_id: stats.guestId,
-          mode: stats.mode,
-          score: stats.score,
-          accuracy: stats.accuracy,
-          time_per_round: stats.timePerRound,
-          outcome: stats.outcome,
-          opponent: stats.opponent,
-          round_details: stats.roundDetails,
-        })
-        .select("id")
-        .single();
+      // Generate a unique ID for the game stats
+      const id = uuidv4();
 
-      if (error) {
-        console.error("Error saving game stats:", error);
-        return { id: null, error };
-      }
+      // Get existing game history from localStorage
+      const existingHistoryJson = localStorage.getItem("gameHistory") || "[]";
+      const existingHistory = JSON.parse(existingHistoryJson);
 
-      // Then, update the user's XP in the unified_profiles table
-      // Only if we have a valid user ID or guest ID
-      if (stats.userId || stats.guestId) {
-        try {
-          // First, get the current XP values
-          const { data: profileData, error: profileError } = await supabase
-            .from("unified_profiles")
-            .select("xp, level")
-            .or(`id.eq.${stats.userId},guest_id.eq.${stats.guestId}`)
-            .single();
+      // Add new game stats
+      const newGameStats = {
+        id,
+        userId: stats.userId,
+        guestId: stats.guestId,
+        date: new Date().toISOString(),
+        mode: stats.mode,
+        score: stats.score,
+        accuracy: stats.accuracy,
+        timePerRound: stats.timePerRound,
+        outcome: stats.outcome,
+        opponent: stats.opponent,
+      };
 
-          if (profileError) {
-            console.error(
-              "Error fetching user profile for XP update:",
-              profileError,
-            );
-          } else if (profileData) {
-            // Calculate XP to add based on game score (1 XP per 1 point)
-            const xpToAdd = Math.max(0, stats.score); // Ensure we don't add negative XP
+      // Add to history
+      existingHistory.unshift(newGameStats);
 
-            // Get current XP values or initialize if not present
-            const currentXp = profileData.xp || {
-              solo: 0,
-              duel: 0,
-              tournament: 0,
-            };
+      // Save back to localStorage
+      localStorage.setItem("gameHistory", JSON.stringify(existingHistory));
 
-            // Update the appropriate mode's XP
-            let updatedXp = { ...currentXp };
-            if (stats.mode === "Solo") {
-              updatedXp.solo += xpToAdd;
-            } else if (stats.mode === "1v1") {
-              updatedXp.duel += xpToAdd;
-            } else if (stats.mode === "Tournament") {
-              updatedXp.tournament += xpToAdd;
-            }
-
-            // Calculate total XP and new level
-            const totalXp =
-              updatedXp.solo + updatedXp.duel + updatedXp.tournament;
-            const newLevel = calculateLevel(totalXp);
-
-            // Update the profile with new XP and level
-            const { error: updateError } = await supabase
-              .from("unified_profiles")
-              .update({
-                xp: updatedXp,
-                level: newLevel,
-              })
-              .or(`id.eq.${stats.userId},guest_id.eq.${stats.guestId}`);
-
-            if (updateError) {
-              console.error("Error updating user XP:", updateError);
-            }
-          }
-        } catch (xpErr) {
-          console.error("Exception updating XP:", xpErr);
-          // Continue execution - XP update failure shouldn't prevent game stats from being saved
-        }
-      }
-
-      return { id: data?.id || null, error: null };
+      return { id, error: null };
     } catch (err) {
-      console.error("Exception saving game stats:", err);
+      console.error("Error saving game stats:", err);
       return { id: null, error: err };
     }
   },
@@ -174,42 +118,26 @@ export const gameStatsService = {
     limit: number = 20,
   ): Promise<{ games: GameRecord[]; error: any }> {
     try {
-      let query = supabase.from("game_stats").select("*");
+      // Get game history from localStorage
+      const historyJson = localStorage.getItem("gameHistory") || "[]";
+      const allGames = JSON.parse(historyJson);
 
-      // Filter by either user_id or guest_id
+      // Filter by userId or guestId
+      let filteredGames = allGames;
       if (userId) {
-        query = query.eq("user_id", userId);
+        filteredGames = allGames.filter((game: any) => game.userId === userId);
       } else if (guestId) {
-        query = query.eq("guest_id", guestId);
-      } else {
-        return { games: [], error: "No user ID or guest ID provided" };
+        filteredGames = allGames.filter(
+          (game: any) => game.guestId === guestId,
+        );
       }
 
-      // Order by created_at and limit results
-      const { data, error } = await query
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      // Limit results
+      const limitedGames = filteredGames.slice(0, limit);
 
-      if (error) {
-        console.error("Error fetching game history:", error);
-        return { games: [], error };
-      }
-
-      // Transform the data to match the GameRecord interface
-      const games: GameRecord[] = data.map((game) => ({
-        id: game.id,
-        date: game.created_at,
-        mode: game.mode,
-        score: game.score,
-        outcome: game.outcome,
-        opponent: game.opponent,
-        accuracy: game.accuracy,
-        timePerRound: game.time_per_round,
-      }));
-
-      return { games, error: null };
+      return { games: limitedGames, error: null };
     } catch (err) {
-      console.error("Exception fetching game history:", err);
+      console.error("Error getting game history:", err);
       return { games: [], error: err };
     }
   },
