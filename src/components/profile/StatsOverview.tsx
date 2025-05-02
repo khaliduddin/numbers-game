@@ -30,8 +30,6 @@ interface StatsOverviewProps {
     bestScore: number;
     fastestTime: string;
     accuracy: number;
-    level: number;
-    xpProgress: number;
   };
   gameMode?: "Solo" | "1v1" | "Tournament" | "All";
   userId?: string;
@@ -46,6 +44,11 @@ interface GameStats {
   totalGames: number;
   wins: number;
   losses: number;
+  xp?: {
+    solo: number;
+    duel: number;
+    tournament: number;
+  };
 }
 
 const StatsOverview = ({
@@ -57,8 +60,6 @@ const StatsOverview = ({
     bestScore: 0,
     fastestTime: "N/A",
     accuracy: 0,
-    level: 0,
-    xpProgress: 0,
   },
   gameMode = "All",
   userId,
@@ -79,17 +80,25 @@ const StatsOverview = ({
     setDataAvailable(true);
     setLoading(true);
 
-    // Always try to fetch game stats
-    fetchGameStats();
-
-    // Only fetch recent games for Solo mode
-    if (gameMode === "Solo") {
-      fetchRecentGames();
-    }
-
-    // Fetch user profile to get level and XP data
+    // Fetch user profile first to get level and XP data
     if (userId || guestId) {
-      fetchUserProfile();
+      fetchUserProfile().then(() => {
+        // After profile is fetched, get game stats
+        fetchGameStats();
+
+        // Only fetch recent games for Solo mode
+        if (gameMode === "Solo") {
+          fetchRecentGames();
+        }
+      });
+    } else {
+      // If no user ID, just fetch game stats
+      fetchGameStats();
+
+      // Only fetch recent games for Solo mode
+      if (gameMode === "Solo") {
+        fetchRecentGames();
+      }
     }
   }, [gameMode, userId, guestId]);
 
@@ -107,62 +116,26 @@ const StatsOverview = ({
         return;
       }
 
-      // Calculate XP progress based on the current game mode
-      let xpProgress = 0;
-      let level = profile.level || 0;
-
+      // Update game stats with XP data
       if (profile.xp) {
-        const gameModeKey =
-          gameMode.toLowerCase() === "1v1"
-            ? "duel"
-            : (gameMode.toLowerCase() as "solo" | "duel" | "tournament");
+        console.log("XP breakdown from database:", profile.xp);
 
-        // Get total XP across all modes
-        const totalXp =
-          profile.xp.solo + profile.xp.duel + profile.xp.tournament;
-
-        // Calculate progress to next level
-        if (level === 0) {
-          xpProgress = Math.min(100, Math.floor((totalXp / 100) * 100));
-        } else {
-          // Calculate XP needed for current level
-          let xpForCurrentLevel = 100; // XP needed for level 1
-          for (let i = 1; i < level; i++) {
-            xpForCurrentLevel += 50 + (i - 1) * 50;
-          }
-
-          // Calculate XP needed for next level
-          const xpForNextLevel = xpForCurrentLevel + 50 + (level - 1) * 50;
-
-          // Calculate progress percentage
-          const xpInCurrentLevel = totalXp - xpForCurrentLevel;
-          const xpNeededForNextLevel = xpForNextLevel - xpForCurrentLevel;
-
-          xpProgress = Math.min(
-            100,
-            Math.floor((xpInCurrentLevel / xpNeededForNextLevel) * 100),
-          );
-        }
+        setGameStats((prev) => {
+          const updatedStats = {
+            ...(prev || {}),
+            xp: profile.xp,
+            wins: prev?.wins || 0,
+            losses: prev?.losses || 0,
+            totalGames: prev?.totalGames || 0,
+            averageScore: prev?.averageScore || 0,
+            bestScore: prev?.bestScore || 0,
+            fastestTime: prev?.fastestTime || "N/A",
+            accuracy: prev?.accuracy || 0,
+          };
+          console.log("Updated game stats:", updatedStats);
+          return updatedStats;
+        });
       }
-
-      // Update game stats with level and XP data
-      console.log("Setting level and xpProgress:", level, xpProgress);
-      setGameStats((prev) => {
-        const updatedStats = {
-          ...(prev || {}),
-          level,
-          xpProgress,
-          wins: prev?.wins || 0,
-          losses: prev?.losses || 0,
-          totalGames: prev?.totalGames || 0,
-          averageScore: prev?.averageScore || 0,
-          bestScore: prev?.bestScore || 0,
-          fastestTime: prev?.fastestTime || "N/A",
-          accuracy: prev?.accuracy || 0,
-        };
-        console.log("Updated game stats:", updatedStats);
-        return updatedStats;
-      });
     } catch (error) {
       console.error("Error in fetchUserProfile:", error);
     }
@@ -330,8 +303,7 @@ const StatsOverview = ({
       bestScore: displayStats.bestScore || 0,
       fastestTime: displayStats.fastestTime || "N/A",
       accuracy: displayStats.accuracy || 0,
-      level: displayStats.level || 0,
-      xpProgress: displayStats.xpProgress || 0,
+      xp: displayStats.xp || { solo: 0, duel: 0, tournament: 0 },
     };
 
     const commonCards = [
@@ -443,20 +415,20 @@ const StatsOverview = ({
             <div className="flex justify-between items-center mb-2">
               <div>
                 <h3 className="font-medium">
-                  Level {gameStats?.level || stats.level}
+                  {gameMode} Level{" "}
+                  {calculateLevel(getXpForGameMode(gameStats?.xp, gameMode))}
                 </h3>
                 <p className="text-sm text-muted-foreground">XP Progress</p>
               </div>
               <span className="text-sm font-medium">
-                {gameStats?.xpProgress || stats.xpProgress}%
+                {calculateXpProgress(getXpForGameMode(gameStats?.xp, gameMode))}
+                %
               </span>
             </div>
             <Progress
-              value={
-                gameStats?.xpProgress !== undefined
-                  ? gameStats.xpProgress
-                  : stats.xpProgress
-              }
+              value={calculateXpProgress(
+                getXpForGameMode(gameStats?.xp, gameMode),
+              )}
               className="h-2"
             />
           </div>
@@ -487,5 +459,71 @@ const StatCard = ({ icon, title, value, description }: StatCardProps) => {
     </Card>
   );
 };
+
+// Helper functions for XP and level calculations
+function getXpForGameMode(
+  xp: { solo: number; duel: number; tournament: number } | undefined,
+  gameMode: string,
+): number {
+  if (!xp) return 0;
+
+  switch (gameMode.toLowerCase()) {
+    case "solo":
+      return xp.solo || 0;
+    case "1v1":
+      return xp.duel || 0;
+    case "tournament":
+      return xp.tournament || 0;
+    case "all":
+      return (xp.solo || 0) + (xp.duel || 0) + (xp.tournament || 0);
+    default:
+      return 0;
+  }
+}
+
+function calculateLevel(xpPoints: number): number {
+  // Level 1 requires 100 XP
+  // Each subsequent level requires previous level + 50 XP
+  // Level 0 is default (0-99 XP)
+  if (xpPoints < 100) return 0;
+
+  // For levels 1 and above
+  let level = 1;
+  let requiredXP = 100;
+
+  while (xpPoints >= requiredXP) {
+    level++;
+    requiredXP += 50 + (level - 1) * 50;
+  }
+
+  return level - 1; // Adjust because we incremented before checking
+}
+
+function calculateXpProgress(xpPoints: number): number {
+  const currentLevel = calculateLevel(xpPoints);
+
+  // If level 0, simple percentage of progress to level 1 (100 XP)
+  if (currentLevel === 0) {
+    return Math.min(100, Math.floor((xpPoints / 100) * 100));
+  }
+
+  // Calculate XP needed for current level
+  let xpForCurrentLevel = 100; // XP needed for level 1
+  for (let i = 1; i < currentLevel; i++) {
+    xpForCurrentLevel += 50 + (i - 1) * 50;
+  }
+
+  // Calculate XP needed for next level
+  const xpForNextLevel = xpForCurrentLevel + 50 + (currentLevel - 1) * 50;
+
+  // Calculate progress percentage
+  const xpInCurrentLevel = xpPoints - xpForCurrentLevel;
+  const xpNeededForNextLevel = xpForNextLevel - xpForCurrentLevel;
+
+  return Math.min(
+    100,
+    Math.floor((xpInCurrentLevel / xpNeededForNextLevel) * 100),
+  );
+}
 
 export default StatsOverview;

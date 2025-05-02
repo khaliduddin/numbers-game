@@ -1,4 +1,5 @@
 import { firebaseGameStatsService } from "./firebaseServices";
+import { v4 as uuidv4 } from "uuid";
 
 export interface GameStats {
   id?: string;
@@ -94,6 +95,7 @@ export const gameStatsService = {
         timePerRound: stats.timePerRound,
         outcome: stats.outcome,
         opponent: stats.opponent,
+        roundDetails: stats.roundDetails,
       };
 
       // Add to history
@@ -102,7 +104,9 @@ export const gameStatsService = {
       // Save back to localStorage
       localStorage.setItem("gameHistory", JSON.stringify(existingHistory));
 
-      return { id, error: null };
+      // Save to Firebase database
+      const result = await firebaseGameStatsService.saveGameStats(stats);
+      return result;
     } catch (err) {
       console.error("Error saving game stats:", err);
       return { id: null, error: err };

@@ -54,6 +54,12 @@ export const unifiedProfileService = {
   async saveProfile(
     profile: Partial<UnifiedProfile>,
   ): Promise<{ profile: UnifiedProfile | null; error: any }> {
+    // Ensure no undefined values are sent to Firestore
+    Object.keys(profile).forEach((key) => {
+      if (profile[key as keyof Partial<UnifiedProfile>] === undefined) {
+        profile[key as keyof Partial<UnifiedProfile>] = null;
+      }
+    });
     return firebaseProfileService.saveProfile(profile);
   },
 

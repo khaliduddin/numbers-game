@@ -2,9 +2,19 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Mail, KeyRound } from "lucide-react";
 import { authService } from "@/services/authService";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
+
+// Helper function to generate a referral code
+function generateReferralCode() {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 12; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+}
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,17 +27,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-const formSchema = z.object({
+// Email form schema
+const emailFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z
-    .string()
-    .min(6, { message: "Password must be at least 6 characters" }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+// OTP form schema
+const otpFormSchema = z.object({
+  otp: z.string().length(6, { message: "OTP must be 6 digits" }),
+});
+
+type EmailFormValues = z.infer<typeof emailFormSchema>;
+type OtpFormValues = z.infer<typeof otpFormSchema>;
 
 interface LoginFormProps {
-  onSubmit?: (values: FormValues) => void;
+  onSubmit?: (values: any) => void;
   onForgotPassword?: () => void;
   onSignUpClick?: () => void;
 }
@@ -35,60 +49,82 @@ interface LoginFormProps {
 const LoginForm = ({
   onSubmit = () => {},
   onForgotPassword = async () => {
-    const email = prompt(
-      "Please enter your email address to reset your password",
-    );
-    if (email) {
-      try {
-        // This would need to be implemented with Firebase Auth
-        // For now, just show an alert
-        alert(
-          "Password reset functionality will be implemented with Firebase Auth",
-        );
-      } catch (error) {
-        console.error("Error sending reset email:", error);
-        alert("Failed to send reset email. Please try again.");
-      }
-    }
+    // Not needed with OTP-based auth
   },
   onSignUpClick = () => {},
 }: LoginFormProps) => {
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showOtpForm, setShowOtpForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpResendCountdown, setOtpResendCountdown] = useState(0);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  // Email form
+  const emailForm = useForm<EmailFormValues>({
+    resolver: zodResolver(emailFormSchema),
     defaultValues: {
       email: "",
-      password: "",
     },
   });
 
-  const handleSubmit = async (values: FormValues) => {
+  // OTP form
+  const otpForm = useForm<OtpFormValues>({
+    resolver: zodResolver(otpFormSchema),
+    defaultValues: {
+      otp: "",
+    },
+  });
+
+  // Handle email form submission
+  const handleEmailSubmit = async (values: EmailFormValues) => {
     setIsLoading(true);
     setLoginError(null);
     try {
-      // Use Firebase authentication through authService
-      const userData = await authService.login({
-        email: values.email,
-        password: values.password,
-      });
+      // Send OTP to user's email
+      const { success, error } = await authService.sendOtp(values.email);
 
-      // If login successful, get the user profile
-      if (userData) {
-        // Get the user profile from unified_profiles
+      if (success) {
+        setEmail(values.email);
+        setShowOtpForm(true);
+        setOtpSent(true);
+        startResendCountdown();
+      } else {
+        setLoginError(error || "Failed to send verification code");
+      }
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "Failed to send verification code",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle OTP form submission
+  const handleOtpSubmit = async (values: OtpFormValues) => {
+    setIsLoading(true);
+    setLoginError(null);
+    try {
+      // Verify OTP
+      const { success, user, error } = await authService.verifyOtp(
+        email,
+        values.otp,
+      );
+
+      if (success && user) {
+        // Get or create user profile
         const { profile } = await unifiedProfileService.getProfile(
-          userData.id,
-          false, // Explicitly set isGuest to false for auth users
+          user.id,
+          false,
         );
 
-        // If profile exists, update local values
         if (profile) {
-          values.username = profile.username;
-          values.avatarUrl = profile.avatarUrl;
-
           // Store the complete user profile in localStorage
+          // Make sure to preserve the existing referral code
           localStorage.setItem(
             "userProfile",
             JSON.stringify({
@@ -100,30 +136,31 @@ const LoginForm = ({
               phoneNumber: profile.phoneNumber,
               avatarUrl: profile.avatarUrl,
               joinDate: profile.joinDate,
-              referralCode: profile.referralCode,
+              referralCode: profile.referralCode, // Use existing referral code
               isGuest: false,
             }),
           );
         } else {
           // If no profile exists, create a basic one
-          const username = values.email.split("@")[0];
+          const username = email.split("@")[0];
           const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
           // Create profile in unified_profiles
           const { profile: newProfile } =
             await unifiedProfileService.saveProfile({
-              id: userData.id,
+              id: user.id,
               username,
-              email: values.email,
+              email,
               avatarUrl,
               isGuest: false,
               joinDate: new Date().toISOString(),
+              telegramId: null,
+              walletAddress: null,
+              phoneNumber: null,
+              referralCode: generateReferralCode(), // Always generate a referral code
             });
 
           if (newProfile) {
-            values.username = newProfile.username;
-            values.avatarUrl = newProfile.avatarUrl;
-
             // Store the complete user profile in localStorage
             localStorage.setItem(
               "userProfile",
@@ -142,148 +179,213 @@ const LoginForm = ({
             );
           }
         }
-      }
 
-      // Clear any showAuth flag to prevent login loop
-      localStorage.removeItem("showAuth");
-      // Set hasVisitedWelcome to true
-      localStorage.setItem("hasVisitedWelcome", "true");
-      // Force currentView to main in Home component
-      setTimeout(() => {
-        const mainViewEvent = new CustomEvent("changeView", {
-          detail: { view: "main" },
-          bubbles: true,
-          cancelable: true,
-        });
-        document.dispatchEvent(mainViewEvent);
-      }, 0);
-      await onSubmit(values);
+        // Clear any showAuth flag to prevent login loop
+        localStorage.removeItem("showAuth");
+        // Set hasVisitedWelcome to true
+        localStorage.setItem("hasVisitedWelcome", "true");
+        // Force currentView to main in Home component
+        setTimeout(() => {
+          const mainViewEvent = new CustomEvent("changeView", {
+            detail: { view: "main" },
+            bubbles: true,
+            cancelable: true,
+          });
+          document.dispatchEvent(mainViewEvent);
+        }, 0);
+        await onSubmit({ email });
+      } else {
+        setLoginError(error || "Invalid verification code");
+      }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("OTP verification error:", error);
       setLoginError(
-        error instanceof Error ? error.message : "Failed to sign in",
+        error instanceof Error ? error.message : "Failed to verify code",
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+  // Start countdown for OTP resend
+  const startResendCountdown = () => {
+    setOtpResendCountdown(60); // 60 seconds countdown
+    const interval = setInterval(() => {
+      setOtpResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Handle resend OTP
+  const handleResendOtp = async () => {
+    if (otpResendCountdown > 0) return;
+
+    setIsLoading(true);
+    setLoginError(null);
+    try {
+      const { success, error } = await authService.sendOtp(email);
+
+      if (success) {
+        setOtpSent(true);
+        startResendCountdown();
+      } else {
+        setLoginError(error || "Failed to resend verification code");
+      }
+    } catch (error) {
+      console.error("Error resending OTP:", error);
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "Failed to resend verification code",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Go back to email form
+  const handleBackToEmail = () => {
+    setShowOtpForm(false);
+    setOtpSent(false);
+    setLoginError(null);
+    otpForm.reset();
   };
 
   return (
     <div className="w-full max-w-md p-4 sm:p-6 space-y-4 sm:space-y-6 bg-white rounded-lg shadow-md">
       <div className="text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Welcome Back
+          {showOtpForm ? "Verify Your Email" : "Welcome Back"}
         </h2>
         <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
-          Sign in to your account to continue
+          {showOtpForm
+            ? `Enter the verification code sent to ${email}`
+            : "Sign in to your account to continue"}
         </p>
       </div>
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="space-y-3 sm:space-y-4"
-        >
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm">Email</FormLabel>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
-                  <FormControl>
-                    <Input
-                      placeholder="Enter your email"
-                      className="pl-10 text-sm h-9 sm:h-10"
-                      {...field}
-                    />
-                  </FormControl>
-                </div>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm">Password</FormLabel>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
-                  <FormControl>
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      className="pl-10 text-sm h-9 sm:h-10"
-                      {...field}
-                    />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1 h-6 sm:h-7 w-6 sm:w-7"
-                    onClick={togglePasswordVisibility}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-3 sm:h-4 w-3 sm:w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-3 sm:h-4 w-3 sm:w-4 text-gray-400" />
-                    )}
-                  </Button>
-                </div>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex items-center justify-end">
-            <Button
-              type="button"
-              variant="link"
-              className="px-0 text-xs sm:text-sm text-blue-600 h-auto"
-              onClick={onForgotPassword}
-            >
-              Forgot password?
-            </Button>
-          </div>
-
-          {loginError && (
-            <div className="text-sm text-red-500 p-3 bg-red-50 rounded-md border border-red-200 mt-3">
-              {loginError}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full h-9 sm:h-10 text-sm"
-            disabled={isLoading}
+      {showOtpForm ? (
+        <Form {...otpForm}>
+          <form
+            onSubmit={otpForm.handleSubmit(handleOtpSubmit)}
+            className="space-y-3 sm:space-y-4"
           >
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
+            <FormField
+              control={otpForm.control}
+              name="otp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm">Verification Code</FormLabel>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-2.5 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
+                    <FormControl>
+                      <Input
+                        placeholder="Enter 6-digit code"
+                        className="pl-10 text-sm h-9 sm:h-10 text-center font-mono tracking-widest"
+                        maxLength={6}
+                        {...field}
+                        onChange={(e) => {
+                          // Only allow digits
+                          const value = e.target.value.replace(/[^0-9]/g, "");
+                          field.onChange(value);
+                        }}
+                      />
+                    </FormControl>
+                  </div>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )}
+            />
 
-          <div className="text-center mt-3 sm:mt-4">
-            <p className="text-xs sm:text-sm text-gray-600">
-              Don't have an account?{" "}
+            {loginError && (
+              <div className="text-sm text-red-500 p-3 bg-red-50 rounded-md border border-red-200 mt-3">
+                {loginError}
+              </div>
+            )}
+
+            <div className="flex flex-col space-y-3">
               <Button
-                type="button"
-                variant="link"
-                className="p-0 text-xs sm:text-sm text-blue-600 h-auto"
-                onClick={onSignUpClick}
+                type="submit"
+                className="w-full h-9 sm:h-10 text-sm"
+                disabled={isLoading}
               >
-                Sign up
+                {isLoading ? "Verifying..." : "Verify Code"}
               </Button>
-            </p>
-          </div>
-        </form>
-      </Form>
+
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-xs sm:text-sm text-blue-600 h-auto"
+                  onClick={handleBackToEmail}
+                  disabled={isLoading}
+                >
+                  Change Email
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-xs sm:text-sm text-blue-600 h-auto"
+                  onClick={handleResendOtp}
+                  disabled={isLoading || otpResendCountdown > 0}
+                >
+                  {otpResendCountdown > 0
+                    ? `Resend in ${otpResendCountdown}s`
+                    : "Resend Code"}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </Form>
+      ) : (
+        <Form {...emailForm}>
+          <form
+            onSubmit={emailForm.handleSubmit(handleEmailSubmit)}
+            className="space-y-3 sm:space-y-4"
+          >
+            <FormField
+              control={emailForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm">Email</FormLabel>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your email"
+                        className="pl-10 text-sm h-9 sm:h-10"
+                        {...field}
+                      />
+                    </FormControl>
+                  </div>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )}
+            />
+
+            {loginError && (
+              <div className="text-sm text-red-500 p-3 bg-red-50 rounded-md border border-red-200 mt-3">
+                {loginError}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-9 sm:h-10 text-sm"
+              disabled={isLoading}
+            >
+              {isLoading ? "Sending Code..." : "Send Verification Code"}
+            </Button>
+          </form>
+        </Form>
+      )}
     </div>
   );
 };

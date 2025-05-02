@@ -4,7 +4,8 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import { Settings, Share2, Trophy, History, Medal, Copy } from "lucide-react";
+import { Settings, Share2, Trophy, History, Medal } from "lucide-react";
+import { toast } from "../ui/use-toast";
 import StatsOverview from "./StatsOverview";
 import GameHistory from "./GameHistory";
 import ProfileForm from "./ProfileForm";
@@ -23,8 +24,8 @@ interface ProfileViewProps {
     telegramId?: string;
     walletAddress?: string;
     phoneNumber?: string;
-    referralCode?: string;
     achievements?: Achievement[];
+    referralCode?: string;
   };
 }
 
@@ -54,7 +55,6 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
     telegramId: "",
     walletAddress: "",
     phoneNumber: "",
-    referralCode: "",
     achievements: [
       {
         id: "ach1",
@@ -113,7 +113,6 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
             telegramId: "",
             walletAddress: "",
             phoneNumber: "",
-            referralCode: "",
             achievements: [], // We'll implement achievements later
           };
         }
@@ -235,6 +234,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         walletAddress: updatedUser.walletAddress,
         phoneNumber: updatedUser.phoneNumber,
         avatarUrl: updatedUser.avatarUrl,
+        referralCode: updatedUser.referralCode, // Preserve existing referral code
         isGuest:
           updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
           updatedUser.id.startsWith("guest_"),
@@ -271,42 +271,34 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
 
         <ProfileForm user={user} onSaveProfile={handleSaveProfile} />
         <div className="flex-1 text-center md:text-left">
-          <Badge variant="outline" className="w-fit mx-auto md:mx-0 mt-2">
-            Level 0
-          </Badge>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Member since {formatDate(user.joinDate)}
           </p>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Your Referral Code
-              </p>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">
-                  {user.referralCode || "N/A"}
-                </p>
-                {user.referralCode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2"
-                    onClick={() => {
-                      const referralLink = `${window.location.origin}?ref=${user.referralCode}`;
-                      navigator.clipboard.writeText(referralLink);
-                      alert("Referral link copied to clipboard");
-                    }}
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy
-                  </Button>
-                )}
+
+          {/* Referral Code Section */}
+          {user.referralCode && (
+            <div className="mt-2 flex flex-col sm:flex-row items-center gap-2">
+              <div className="flex items-center gap-2 bg-primary/5 px-3 py-1 rounded-md">
+                <span className="text-xs font-medium">Referral Code:</span>
+                <span className="text-xs font-bold">{user.referralCode}</span>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  navigator.clipboard.writeText(user.referralCode || "");
+                  toast({
+                    title: "Success",
+                    description: "Referral code copied to clipboard",
+                    duration: 3000,
+                  });
+                }}
+              >
+                Copy Code
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Share your code with friends to earn XP when they use it
-            </p>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end">

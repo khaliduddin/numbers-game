@@ -116,14 +116,15 @@ const GameContainer: React.FC<GameContainerProps> = ({
               : "Draw";
       }
 
+      // Format game mode to match expected format
+      const formattedGameMode = (gameMode.charAt(0).toUpperCase() +
+        gameMode.slice(1)) as "Solo" | "1v1" | "Tournament";
+
       // Save game stats
       const { id, error } = await gameStatsService.saveGameStats({
         userId,
         guestId,
-        mode: (gameMode.charAt(0).toUpperCase() + gameMode.slice(1)) as
-          | "Solo"
-          | "1v1"
-          | "Tournament",
+        mode: formattedGameMode,
         score,
         accuracy,
         timePerRound: avgTime,

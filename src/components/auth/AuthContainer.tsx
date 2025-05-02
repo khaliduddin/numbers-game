@@ -31,7 +31,7 @@ const AuthContainer = ({
   defaultTab = "login",
   showWelcomeTitle = false,
 }: AuthContainerProps) => {
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const [activeTab, setActiveTab] = useState<string>("login");
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
 
@@ -100,7 +100,7 @@ const AuthContainer = ({
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-3 mb-4 sm:mb-6">
+          <TabsList className="grid grid-cols-2 mb-4 sm:mb-6">
             <TabsTrigger
               value="login"
               className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
@@ -109,14 +109,7 @@ const AuthContainer = ({
               <span className="hidden xs:inline">Login</span>
               <span className="xs:hidden">Log</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="signup"
-              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
-            >
-              <User className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Sign Up</span>
-              <span className="xs:hidden">Sign</span>
-            </TabsTrigger>
+
             <TabsTrigger
               value="wallet"
               className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
@@ -162,13 +155,6 @@ const AuthContainer = ({
                     }
                   />
                 </div>
-              </TabsContent>
-
-              <TabsContent value="signup" className="mt-0">
-                <SignupForm
-                  onSubmit={handleSignup}
-                  onLoginClick={() => setActiveTab("login")}
-                />
               </TabsContent>
 
               <TabsContent value="wallet" className="mt-0">

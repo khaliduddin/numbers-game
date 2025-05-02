@@ -1,13 +1,4 @@
-import { mockAuth } from "@/lib/mockAuth";
-
-export interface UserCredentials {
-  email: string;
-  password: string;
-}
-
-export interface SignupData extends UserCredentials {
-  username: string;
-}
+import { firebaseOtpService } from "@/lib/firebaseOtpService";
 
 export interface AuthUser {
   id: string;
@@ -20,30 +11,29 @@ export interface AuthUser {
 
 export const authService = {
   /**
-   * Sign up a new user with email and password
+   * Send OTP to user's email
    */
-  async signup({ email, password, username }: SignupData): Promise<AuthUser> {
+  async sendOtp(email: string): Promise<{ success: boolean; error: any }> {
     try {
-      const userData = await mockAuth.signup({
-        email,
-        password,
-        username,
-      });
-      return userData;
+      return await firebaseOtpService.sendOtp(email);
     } catch (error) {
-      throw error;
+      console.error("Error sending OTP:", error);
+      return { success: false, error };
     }
   },
 
   /**
-   * Sign in a user with email and password
+   * Verify OTP entered by user
    */
-  async login({ email, password }: UserCredentials): Promise<AuthUser> {
+  async verifyOtp(
+    email: string,
+    otp: string,
+  ): Promise<{ success: boolean; user: AuthUser | null; error: any }> {
     try {
-      const userData = await mockAuth.login(email, password);
-      return userData;
+      return await firebaseOtpService.verifyOtp(email, otp);
     } catch (error) {
-      throw error;
+      console.error("Error verifying OTP:", error);
+      return { success: false, user: null, error };
     }
   },
 
@@ -52,7 +42,7 @@ export const authService = {
    */
   async logout(): Promise<void> {
     try {
-      await mockAuth.logout();
+      await firebaseOtpService.logout();
     } catch (error) {
       throw error;
     }

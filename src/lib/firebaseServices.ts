@@ -54,7 +54,6 @@ export const firebaseAuthService = {
         isGuest: false,
         referralCode: generateReferralCode(),
         xp: { solo: 0, duel: 0, tournament: 0 },
-        level: 0,
         loginCount: 1,
         lastLogin: joinDate,
       });
@@ -99,7 +98,6 @@ export const firebaseAuthService = {
           isGuest: false,
           referralCode: generateReferralCode(),
           xp: { solo: 0, duel: 0, tournament: 0 },
-          level: 0,
           loginCount: 1,
           lastLogin: joinDate,
         });
@@ -187,7 +185,6 @@ export const firebaseProfileService = {
           isGuest: data.isGuest,
           guestId: data.guestId,
           stats: data.stats,
-          level: data.level || 0,
           xp: data.xp || { solo: 0, duel: 0, tournament: 0 },
         },
         error: null,
@@ -204,8 +201,27 @@ export const firebaseProfileService = {
       let profileId = profile.id;
       let docRef;
 
-      // Check if profile exists
-      if (isGuest && profile.guestId) {
+      // Check if profile exists by email first (to prevent duplicates)
+      let existingProfileId = null;
+
+      if (!isGuest && profile.email) {
+        const emailQuery = query(
+          collection(db, "profiles"),
+          where("email", "==", profile.email),
+        );
+        const emailQuerySnapshot = await getDocs(emailQuery);
+
+        if (!emailQuerySnapshot.empty) {
+          // Use existing profile ID if found by email
+          existingProfileId = emailQuerySnapshot.docs[0].id;
+        }
+      }
+
+      if (existingProfileId) {
+        // Use existing profile ID
+        profileId = existingProfileId;
+        docRef = doc(db, "profiles", profileId);
+      } else if (isGuest && profile.guestId) {
         // For guest users, query by guestId
         const q = query(
           collection(db, "profiles"),
@@ -225,13 +241,25 @@ export const firebaseProfileService = {
       } else {
         // For authenticated users, use their ID
         docRef = doc(db, "profiles", profileId);
+      }
 
-        // Check if profile exists
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
-          // Generate referral code for new profiles
-          profile.referralCode = profile.referralCode || generateReferralCode();
-        }
+      // Check if profile already exists to preserve referral code
+      const existingDoc = await getDoc(docRef);
+      const existingData = existingDoc.exists() ? existingDoc.data() : null;
+
+      // Only generate a referral code if one doesn't exist in the profile or in the database
+      if (
+        !profile.referralCode &&
+        (!existingData || !existingData.referralCode)
+      ) {
+        profile.referralCode = generateReferralCode();
+      } else if (
+        existingData &&
+        existingData.referralCode &&
+        !profile.referralCode
+      ) {
+        // Use existing referral code from database if available
+        profile.referralCode = existingData.referralCode;
       }
 
       const currentTime = new Date().toISOString();
@@ -240,10 +268,10 @@ export const firebaseProfileService = {
       const profileData = {
         id: profileId,
         username: profile.username || "User",
-        email: profile.email,
-        telegramId: profile.telegramId,
-        walletAddress: profile.walletAddress,
-        phoneNumber: profile.phoneNumber,
+        email: profile.email || null,
+        telegramId: profile.telegramId || null,
+        walletAddress: profile.walletAddress || null,
+        phoneNumber: profile.phoneNumber || null,
         avatarUrl:
           profile.avatarUrl ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username || "User"}`,
@@ -251,9 +279,9 @@ export const firebaseProfileService = {
         updatedAt: currentTime,
         lastLogin: currentTime,
         loginCount: profile.loginCount || 1,
-        referralCode: profile.referralCode,
+        referralCode: profile.referralCode || null,
         isGuest: isGuest,
-        guestId: profile.guestId,
+        guestId: profile.guestId || null,
         stats: profile.stats || {
           wins: 0,
           losses: 0,
@@ -267,7 +295,6 @@ export const firebaseProfileService = {
           duel: 0,
           tournament: 0,
         },
-        level: profile.level || 0,
       };
 
       // Save to Firestore
@@ -290,7 +317,6 @@ export const firebaseProfileService = {
           isGuest: profileData.isGuest,
           guestId: profileData.guestId,
           stats: profileData.stats,
-          level: profileData.level,
           xp: profileData.xp,
         },
         error: null,
@@ -310,15 +336,15 @@ export const firebaseGameStatsService = {
       const gameStatsRef = collection(db, "game_stats");
 
       const gameData = {
-        userId: stats.userId,
-        guestId: stats.guestId,
+        userId: stats.userId || null,
+        guestId: stats.guestId || null,
         mode: stats.mode,
         score: stats.score,
         accuracy: stats.accuracy,
         timePerRound: stats.timePerRound,
         outcome: stats.outcome,
-        opponent: stats.opponent,
-        roundDetails: stats.roundDetails,
+        opponent: stats.opponent || null,
+        roundDetails: stats.roundDetails || [],
         createdAt: Timestamp.now(),
       };
 
@@ -367,15 +393,9 @@ export const firebaseGameStatsService = {
               updatedXp.tournament += xpToAdd;
             }
 
-            // Calculate total XP and new level
-            const totalXp =
-              updatedXp.solo + updatedXp.duel + updatedXp.tournament;
-            const newLevel = calculateLevel(totalXp);
-
-            // Update the profile with new XP and level
+            // Update the profile with new XP
             await updateDoc(doc(db, "profiles", profileDoc.id), {
               xp: updatedXp,
-              level: newLevel,
             });
           }
         } catch (xpErr) {
@@ -537,20 +557,4 @@ function generateReferralCode() {
   return result;
 }
 
-function calculateLevel(xpPoints: number): number {
-  // Level 1 requires 100 XP
-  // Each subsequent level requires previous level + 50 XP
-  // Level 0 is default (0-99 XP)
-  if (xpPoints < 100) return 0;
-
-  // For levels 1 and above
-  let level = 1;
-  let requiredXP = 100;
-
-  while (xpPoints >= requiredXP) {
-    level++;
-    requiredXP += 50 + (level - 1) * 50;
-  }
-
-  return level - 1; // Adjust because we incremented before checking
-}
+// Level calculation moved to StatsOverview component
