@@ -1,30 +1,72 @@
-# React + TypeScript + Vite
+# Web3 Multiplayer Number Game
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser and Telegram mini app where players compete in number reduction challenges across solo, 1v1, and tournament modes with Web3 integration for payments and user profiles.
 
-Currently, two official plugins are available:
+## Environment Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The application supports three environments:
 
-## Expanding the ESLint configuration
+- **Development**: For local development with full console logs and mock email services
+- **Pre-production**: For end-to-end testing with real services but isolated from production
+- **Production**: For the live application
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+### Development Environment
 
-- Configure the top-level `parserOptions` property like this:
+```bash
+# Start the development server
+npm run dev
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+# Build for development
+npm run build
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+### Pre-production Environment
+
+The pre-production environment is designed for end-to-end testing with real services but in an isolated environment. It has the following features:
+
+- Served under the `/preprod/` path
+- Uses real email services (SendGrid) instead of mock services
+- Console logs are disabled except for errors and warnings
+- Can be used to test the full application flow before deploying to production
+
+```bash
+# Start the pre-production server
+npm run dev:preprod
+
+# Build for pre-production
+npm run build:preprod
+
+# Preview the pre-production build
+npm run preview:preprod
+```
+
+#### Console Logs in Pre-production
+
+In pre-production, console logs are disabled by default except for `console.error` and `console.warn`. To temporarily enable logs for debugging, use the following function in the browser console:
+
+```js
+window.enableLogs(true); // Enable logs
+window.enableLogs(false); // Disable logs again
+```
+
+### Production Environment
+
+```bash
+# Build for production
+npm run build
+
+# Preview the production build
+npm run preview
+```
+
+## Email Verification
+
+The application uses SendGrid for sending verification emails in pre-production and production environments. In development, emails are logged to the console instead of being sent.
+
+## Supabase Integration
+
+To update Supabase types:
+
+```bash
+npm run types:supabase
+```

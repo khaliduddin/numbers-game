@@ -12,9 +12,17 @@ if (process.env.TEMPO === "true") {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === "development" ? "/" : process.env.VITE_BASE_PATH || "/",
+  base:
+    process.env.NODE_ENV === "development"
+      ? "/"
+      : process.env.NODE_ENV === "preprod"
+        ? "/preprod/"
+        : process.env.VITE_BASE_PATH || "/",
   optimizeDeps: {
     entries: ["src/main.tsx", "src/tempobook/**/*"],
+  },
+  define: {
+    __APP_ENV__: JSON.stringify(process.env.NODE_ENV || "development"),
   },
   plugins: [
     react({
@@ -31,5 +39,5 @@ export default defineConfig({
   server: {
     // @ts-ignore
     allowedHosts: true,
-  }
+  },
 });

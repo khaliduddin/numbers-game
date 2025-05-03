@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { SendgridClient } from "https://deno.land/x/sendgrid@0.0.3/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,12 +61,7 @@ serve(async (req) => {
       );
     }
 
-    // In a real implementation, you would use a proper email service like SendGrid, Mailgun, etc.
-    // For this example, we'll just log the email content
-    console.log(`Sending OTP email to ${email} with code ${otp}`);
-
-    // Example of how you might send an email using a third-party service
-    // This is just a placeholder - you would need to implement actual email sending
+    // Prepare email content
     const emailContent = `
       <h1>Your Verification Code</h1>
       <p>Hello ${username},</p>
@@ -73,6 +69,40 @@ serve(async (req) => {
       <p>This code will expire in 10 minutes.</p>
       <p>If you didn't request this code, please ignore this email.</p>
     `;
+
+    // Get environment
+    const environment = Deno.env.get("ENVIRONMENT") || "development";
+
+    // In development or if SendGrid API key is not available, just log the email
+    if (environment === "development" || !Deno.env.get("SENDGRID_API_KEY")) {
+      console.log(`[DEV MODE] Sending OTP email to ${email} with code ${otp}`);
+      console.log(`Email content: ${emailContent}`);
+    } else {
+      // Send actual email in preprod or production environments
+      try {
+        const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
+        const fromEmail =
+          Deno.env.get("SENDGRID_FROM_EMAIL") || "noreply@numbergame.com";
+
+        if (!sendgridApiKey) {
+          throw new Error("SendGrid API key not found");
+        }
+
+        const client = new SendgridClient(sendgridApiKey);
+
+        await client.send({
+          to: email,
+          from: fromEmail,
+          subject: "Your Verification Code",
+          html: emailContent,
+        });
+
+        console.log(`Email sent to ${email} successfully`);
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError);
+        // Don't throw here - we still want to store the OTP even if email fails
+      }
+    }
 
     // Store the OTP in a temporary table with expiration
     const { error } = await supabaseClient.from("verification_codes").upsert({
