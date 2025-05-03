@@ -1,11 +1,4 @@
-import {
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  getAuth,
-  fetchSignInMethodsForEmail,
-} from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { fetchSignInMethodsForEmail } from "firebase/auth";
 import {
   doc,
   setDoc,
@@ -18,6 +11,7 @@ import { auth } from "./firebase";
 import { db } from "./firebase";
 import { firebaseProfileService } from "./firebaseServices";
 import { AuthUser } from "@/services/authService";
+import { sendgridEmailService } from "./sendgridEmailService";
 
 export const firebaseOtpService = {
   /**
@@ -47,34 +41,37 @@ export const firebaseOtpService = {
       // Check if we're in development mode
       const isDevelopment = import.meta.env.MODE === "development";
 
-      if (isDevelopment) {
-        // For development, log the OTP to the console
-        console.log(`OTP for ${email}: ${otp}`);
+      // Store in Firestore for verification purposes (both dev and prod)
+      try {
+        await setDoc(doc(db, "verification_codes", email), {
+          email,
+          code: otp,
+          created_at: serverTimestamp(),
+          expires_at: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000), // 10 minutes expiration
+        });
+      } catch (firestoreError) {
+        console.error("Error storing OTP in Firestore:", firestoreError);
+        // Continue even if Firestore storage fails
+      }
 
-        // Also store in Firestore for development testing
-        try {
-          await setDoc(doc(db, "verification_codes", email), {
-            email,
-            code: otp,
-            created_at: serverTimestamp(),
-            expires_at: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000), // 10 minutes expiration
-          });
-        } catch (firestoreError) {
-          console.error("Error storing OTP in Firestore:", firestoreError);
-          // Continue even if Firestore storage fails in development
-        }
-      } else {
-        // In production, use Firebase Cloud Function
-        try {
-          const functions = getFunctions();
-          const sendOtpEmail = httpsCallable(functions, "sendOtpEmail");
-          const result = await sendOtpEmail({ email, otp, username });
-          console.log("Cloud function result:", result);
-        } catch (functionError) {
-          console.error("Error calling Firebase function:", functionError);
-          // Even if the function call fails, we'll continue with the OTP flow
-          // since we're storing the OTP locally as a fallback
-        }
+      // Send OTP email using SendGrid
+      const emailResult = await sendgridEmailService.sendOtpEmail(
+        email,
+        otp,
+        username,
+      );
+
+      if (!emailResult.success) {
+        console.error(
+          "Error sending OTP email via SendGrid:",
+          emailResult.error,
+        );
+        // We'll continue with the OTP flow since we're storing the OTP locally as a fallback
+      }
+
+      // For development, also log the OTP to the console
+      if (isDevelopment) {
+        console.log(`OTP for ${email}: ${otp}`);
       }
 
       // Simulate email sending delay

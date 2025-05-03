@@ -1,4 +1,5 @@
 import { firebaseOtpService } from "@/lib/firebaseOtpService";
+import { sendgridEmailService } from "@/lib/sendgridEmailService";
 
 export interface AuthUser {
   id: string;
