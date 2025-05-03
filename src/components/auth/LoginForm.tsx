@@ -288,7 +288,7 @@ const LoginForm = ({
                         placeholder="Enter 6-digit code"
                         className="pl-10 text-sm h-9 sm:h-10 text-center font-mono tracking-widest"
                         maxLength={6}
-                        {...field}
+                        value={field.value}
                         onChange={(e) => {
                           // Only allow digits
                           const value = e.target.value.replace(/[^0-9]/g, "");

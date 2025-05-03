@@ -73,11 +73,14 @@ serve(async (req) => {
     // Get environment
     const environment = Deno.env.get("ENVIRONMENT") || "development";
 
-    // In development or if SendGrid API key is not available, just log the email
-    if (environment === "development" || !Deno.env.get("SENDGRID_API_KEY")) {
+    // Always log the OTP in development mode for testing
+    if (environment === "development") {
       console.log(`[DEV MODE] Sending OTP email to ${email} with code ${otp}`);
       console.log(`Email content: ${emailContent}`);
-    } else {
+    }
+
+    // Send email if SendGrid API key is available
+    if (Deno.env.get("SENDGRID_API_KEY")) {
       // Send actual email in preprod or production environments
       try {
         const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
@@ -102,6 +105,11 @@ serve(async (req) => {
         console.error("Failed to send email:", emailError);
         // Don't throw here - we still want to store the OTP even if email fails
       }
+    } else if (environment !== "development") {
+      // Log a warning if SendGrid API key is missing in non-development environments
+      console.error(
+        "SendGrid API key not found in " + environment + " environment",
+      );
     }
 
     // Store the OTP in a temporary table with expiration
