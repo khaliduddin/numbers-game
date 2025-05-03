@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to verification_codes only by authenticated users
+    match /verification_codes/{email} {
+      allow read, write: if request.auth != null && request.auth.token.email == email;
+    }
+    
+    // Allow read/write access to profiles by the owner
+    match /profiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow read for public profile data
+      allow read: if resource.data.isPublic == true;
+    }
+    
+    // Allow read/write access to game_stats by the owner
+    match /game_stats/{docId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow read for public game stats
+      allow read: if resource.data.isPublic == true;
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { SendgridClient } from "https://deno.land/x/sendgrid@0.0.3/mod.ts";
+import { getOtpEmailTemplate } from "@shared/email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,14 +62,8 @@ serve(async (req) => {
       );
     }
 
-    // Prepare email content
-    const emailContent = `
-      <h1>Your Verification Code</h1>
-      <p>Hello ${username},</p>
-      <p>Your verification code is: <strong>${otp}</strong></p>
-      <p>This code will expire in 10 minutes.</p>
-      <p>If you didn't request this code, please ignore this email.</p>
-    `;
+    // Get email content from template
+    const emailContent = getOtpEmailTemplate(username, otp);
 
     // Get environment
     const environment = Deno.env.get("ENVIRONMENT") || "development";

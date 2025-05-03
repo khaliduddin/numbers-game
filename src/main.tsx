@@ -35,6 +35,10 @@ TempoDevtools.init();
 
 // Initialize Firebase with environment variables
 import "./lib/firebase";
+import { useFirebaseEmulators } from "./lib/useFirebaseEmulators";
+
+// Connect to Firebase emulators in development mode
+useFirebaseEmulators();
 
 const basename = import.meta.env.BASE_URL;
 
