@@ -7,7 +7,76 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a conditional Supabase client that only initializes if environment variables are available
+let supabaseClient: any;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+  // Create a mock client with no-op methods when credentials are missing
+  supabaseClient = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({
+              data: null,
+              error: new Error("Supabase not configured"),
+            }),
+        }),
+        data: null,
+        error: new Error("Supabase not configured"),
+      }),
+      insert: () => ({
+        data: null,
+        error: new Error("Supabase not configured"),
+      }),
+      update: () => ({
+        data: null,
+        error: new Error("Supabase not configured"),
+      }),
+      delete: () => ({
+        data: null,
+        error: new Error("Supabase not configured"),
+      }),
+      eq: () => ({
+        single: () =>
+          Promise.resolve({
+            data: null,
+            error: new Error("Supabase not configured"),
+          }),
+      }),
+    }),
+    auth: {
+      signIn: () =>
+        Promise.resolve({
+          user: null,
+          error: new Error("Supabase not configured"),
+        }),
+      signOut: () => Promise.resolve({ error: null }),
+    },
+    storage: {
+      from: () => ({
+        upload: () =>
+          Promise.resolve({
+            data: null,
+            error: new Error("Supabase not configured"),
+          }),
+        download: () => Promise.resolve(new Error("Supabase not configured")),
+      }),
+    },
+    functions: {
+      invoke: () =>
+        Promise.resolve({
+          data: null,
+          error: new Error("Supabase not configured"),
+        }),
+    },
+  };
+  console.warn("Supabase credentials missing. Using mock client.");
+}
+
+export const supabase = supabaseClient;
 
 // Generate a unique referral code
 const generateReferralCode = () => {

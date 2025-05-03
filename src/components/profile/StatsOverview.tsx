@@ -150,11 +150,11 @@ const StatsOverview = ({
 
     setLoading(true);
     try {
-      // Fetch game history from the database
+      // Get game history from the database
       const { games, error } = await gameStatsService.getGameHistory(
         userId,
         guestId,
-        50, // Get more games to calculate stats
+        50, // Get more games to calculate stats (as a number)
       );
 
       if (error) {

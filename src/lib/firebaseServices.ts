@@ -7,11 +7,11 @@ import {
   query,
   where,
   orderBy,
-  limit,
   addDoc,
   updateDoc,
   Timestamp,
 } from "firebase/firestore";
+import { limit as firestoreLimit } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -247,19 +247,20 @@ export const firebaseProfileService = {
       const existingDoc = await getDoc(docRef);
       const existingData = existingDoc.exists() ? existingDoc.data() : null;
 
-      // Only generate a referral code if one doesn't exist in the profile or in the database
-      if (
-        !profile.referralCode &&
-        (!existingData || !existingData.referralCode)
-      ) {
-        profile.referralCode = generateReferralCode();
-      } else if (
-        existingData &&
-        existingData.referralCode &&
-        !profile.referralCode
-      ) {
-        // Use existing referral code from database if available
+      // CRITICAL: Always prioritize existing referral code from database
+      if (existingData && existingData.referralCode) {
+        // Use existing referral code from database - this is the source of truth
         profile.referralCode = existingData.referralCode;
+        console.log(
+          "Using existing referral code from database:",
+          profile.referralCode,
+        );
+      } else if (!profile.referralCode) {
+        // Only generate a new referral code if one doesn't exist anywhere
+        profile.referralCode = generateReferralCode();
+        console.log("Generated new referral code:", profile.referralCode);
+      } else {
+        console.log("Using provided referral code:", profile.referralCode);
       }
 
       const currentTime = new Date().toISOString();
@@ -413,20 +414,24 @@ export const firebaseGameStatsService = {
   async getGameHistory(userId?: string, guestId?: string, limit: number = 20) {
     try {
       let q;
+      // Ensure limit is a number and valid
+      const limitValue =
+        typeof limit === "number" && !isNaN(limit) && limit > 0 ? limit : 20;
 
+      // Use the imported limit function directly
       if (userId) {
+        // Use a simpler query without orderBy to avoid index requirements
         q = query(
           collection(db, "game_stats"),
           where("userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(limit),
+          firestoreLimit(limitValue),
         );
       } else if (guestId) {
+        // Use a simpler query without orderBy to avoid index requirements
         q = query(
           collection(db, "game_stats"),
           where("guestId", "==", guestId),
-          orderBy("createdAt", "desc"),
-          limit(limit),
+          firestoreLimit(limitValue),
         );
       } else {
         return { games: [], error: "No user ID or guest ID provided" };
@@ -439,7 +444,9 @@ export const firebaseGameStatsService = {
         const data = doc.data();
         return {
           id: doc.id,
-          date: data.createdAt.toDate().toISOString(),
+          date: data.createdAt
+            ? data.createdAt.toDate().toISOString()
+            : new Date().toISOString(),
           mode: data.mode,
           score: data.score,
           outcome: data.outcome,
@@ -448,6 +455,11 @@ export const firebaseGameStatsService = {
           timePerRound: data.timePerRound,
         };
       });
+
+      // Sort manually since we removed orderBy from the query
+      games.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
 
       return { games, error: null };
     } catch (err) {

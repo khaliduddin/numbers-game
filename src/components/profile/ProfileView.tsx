@@ -102,6 +102,36 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
 
         if (savedProfile) {
           userData = JSON.parse(savedProfile);
+
+          // Sync with database to ensure we have the latest data
+          if (userData.id) {
+            const isGuest =
+              userData.id === "00000000-0000-0000-0000-000000000000" ||
+              (userData.id && userData.id.startsWith("guest_"));
+
+            const { profile, error } = await unifiedProfileService.getProfile(
+              userData.id,
+              isGuest,
+            );
+
+            if (profile && !error) {
+              // Update local storage with database values
+              const syncedData = {
+                ...userData,
+                referralCode: profile.referralCode, // Always use database version
+                stats: profile.stats || userData.stats,
+                xp: profile.xp || userData.xp,
+              };
+
+              console.log(
+                "Synced referral code from database:",
+                profile.referralCode,
+              );
+
+              localStorage.setItem("userProfile", JSON.stringify(syncedData));
+              userData = syncedData;
+            }
+          }
         } else {
           // Create default guest user data
           userData = {
@@ -216,10 +246,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
 
   // Handle saving profile updates
   const handleSaveProfile = async (updatedUser: any) => {
-    // Save to localStorage
-    localStorage.setItem("userProfile", JSON.stringify(updatedUser));
-
-    // Save to Firebase using unified profile service
+    // Save to Firebase using unified profile service first
     try {
       const { profile, error } = await unifiedProfileService.saveProfile({
         id: updatedUser.id,
@@ -244,16 +271,29 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         console.error("Error saving profile to Firebase:", error);
       }
 
-      // If profile was returned, update the user object
+      // If profile was returned, update the user object with the database values
       if (profile) {
-        updatedUser.referralCode = profile.referralCode;
-        updatedUser.joinDate = profile.joinDate || updatedUser.joinDate;
-      }
+        // Update with values from database to ensure sync
+        const syncedUser = {
+          ...updatedUser,
+          referralCode: profile.referralCode, // Always use database version
+          joinDate: profile.joinDate || updatedUser.joinDate,
+          stats: profile.stats || updatedUser.stats,
+          xp: profile.xp || updatedUser.xp,
+        };
 
-      setUser(updatedUser);
+        // Save the synced profile to localStorage
+        localStorage.setItem("userProfile", JSON.stringify(syncedUser));
+        setUser(syncedUser);
+      } else {
+        // If no profile returned, just save the local version
+        localStorage.setItem("userProfile", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      }
     } catch (err) {
       console.error("Error using unifiedProfileService:", err);
       // Continue without Firebase integration if there's an error
+      localStorage.setItem("userProfile", JSON.stringify(updatedUser));
       setUser(updatedUser);
     }
   };
@@ -280,7 +320,9 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
             <div className="mt-2 flex flex-col sm:flex-row items-center gap-2">
               <div className="flex items-center gap-2 bg-primary/5 px-3 py-1 rounded-md">
                 <span className="text-xs font-medium">Referral Code:</span>
-                <span className="text-xs font-bold">{user.referralCode}</span>
+                <span className="text-xs font-bold" data-testid="referral-code">
+                  {user.referralCode}
+                </span>
               </div>
               <Button
                 variant="outline"

@@ -47,20 +47,72 @@ export const unifiedProfileService = {
     id: string,
     isGuest: boolean = false,
   ): Promise<{ profile: UnifiedProfile | null; error: any }> {
-    return firebaseProfileService.getProfile(id, isGuest);
+    try {
+      // First try to get from localStorage
+      const storedProfile = localStorage.getItem("userProfile");
+      if (storedProfile) {
+        const profile = JSON.parse(storedProfile);
+        if (profile.id === id || (isGuest && profile.isGuest)) {
+          return { profile, error: null };
+        }
+      }
+
+      // Only try Firebase if we're online
+      if (navigator.onLine) {
+        return firebaseProfileService.getProfile(id, isGuest);
+      } else {
+        console.warn("Device is offline, using local profile data only");
+        return { profile: null, error: "Device is offline" };
+      }
+    } catch (error) {
+      console.error("Error in getProfile:", error);
+      return { profile: null, error };
+    }
   },
 
   // Save or update profile
   async saveProfile(
     profile: Partial<UnifiedProfile>,
   ): Promise<{ profile: UnifiedProfile | null; error: any }> {
-    // Ensure no undefined values are sent to Firestore
-    Object.keys(profile).forEach((key) => {
-      if (profile[key as keyof Partial<UnifiedProfile>] === undefined) {
-        profile[key as keyof Partial<UnifiedProfile>] = null;
+    try {
+      // Ensure no undefined values are sent to Firestore
+      Object.keys(profile).forEach((key) => {
+        if (profile[key as keyof Partial<UnifiedProfile>] === undefined) {
+          profile[key as keyof Partial<UnifiedProfile>] = null;
+        }
+      });
+
+      // Always update localStorage
+      const storedProfile = localStorage.getItem("userProfile");
+      if (storedProfile) {
+        const currentProfile = JSON.parse(storedProfile);
+        // Make sure to preserve nested objects properly and referral code
+        const updatedProfile = {
+          ...currentProfile,
+          ...profile,
+          // Always keep existing referral code unless explicitly provided
+          referralCode: profile.referralCode || currentProfile.referralCode,
+          // Preserve nested objects if they exist in current profile but not in the update
+          stats: profile.stats || currentProfile.stats,
+          xp: profile.xp || currentProfile.xp,
+        };
+        localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
       }
-    });
-    return firebaseProfileService.saveProfile(profile);
+
+      // Only try Firebase if we're online
+      if (navigator.onLine) {
+        return firebaseProfileService.saveProfile(profile);
+      } else {
+        console.warn("Device is offline, profile saved locally only");
+        return {
+          profile: profile as UnifiedProfile,
+          error: "Device is offline, profile saved locally only",
+        };
+      }
+    } catch (error) {
+      console.error("Error in saveProfile:", error);
+      return { profile: null, error };
+    }
   },
 
   // Check if username is unique

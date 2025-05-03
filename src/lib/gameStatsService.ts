@@ -104,9 +104,22 @@ export const gameStatsService = {
       // Save back to localStorage
       localStorage.setItem("gameHistory", JSON.stringify(existingHistory));
 
-      // Save to Firebase database
-      const result = await firebaseGameStatsService.saveGameStats(stats);
-      return result;
+      // Only save to Firebase database if online
+      if (navigator.onLine) {
+        try {
+          const result = await firebaseGameStatsService.saveGameStats(stats);
+          return result;
+        } catch (firebaseError) {
+          console.error(
+            "Error saving to Firebase, using local storage only:",
+            firebaseError,
+          );
+          return { id, error: null }; // Return local ID and no error to continue flow
+        }
+      } else {
+        console.warn("Device is offline, game stats saved locally only");
+        return { id, error: null };
+      }
     } catch (err) {
       console.error("Error saving game stats:", err);
       return { id: null, error: err };
@@ -139,7 +152,28 @@ export const gameStatsService = {
       // Limit results
       const limitedGames = filteredGames.slice(0, limit);
 
-      return { games: limitedGames, error: null };
+      // Only try Firebase if online
+      if (navigator.onLine) {
+        try {
+          // Get game history from Firebase database
+          const result = await firebaseGameStatsService.getGameHistory(
+            userId,
+            guestId,
+            limit ? Number(limit) : 20, // Ensure limit is a number
+          );
+          return result;
+        } catch (firebaseError) {
+          console.error(
+            "Error getting game history from Firebase:",
+            firebaseError,
+          );
+          // Fall back to local storage
+          return { games: filteredGames.slice(0, limit), error: null };
+        }
+      } else {
+        console.warn("Device is offline, using local game history only");
+        return { games: filteredGames.slice(0, limit), error: null };
+      }
     } catch (err) {
       console.error("Error getting game history:", err);
       return { games: [], error: err };

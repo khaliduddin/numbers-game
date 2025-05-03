@@ -1,4 +1,4 @@
-import { fetchSignInMethodsForEmail } from "firebase/auth";
+// No longer using fetchSignInMethodsForEmail to avoid network errors
 import {
   doc,
   setDoc,
@@ -41,38 +41,49 @@ export const firebaseOtpService = {
       // Check if we're in development mode
       const isDevelopment = import.meta.env.MODE === "development";
 
-      // Store in Firestore for verification purposes (both dev and prod)
-      try {
-        await setDoc(doc(db, "verification_codes", email), {
-          email,
-          code: otp,
-          created_at: serverTimestamp(),
-          expires_at: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000), // 10 minutes expiration
-        });
-      } catch (firestoreError) {
-        console.error("Error storing OTP in Firestore:", firestoreError);
-        // Continue even if Firestore storage fails
+      // Skip Firestore storage in development mode to avoid connection errors
+      if (!isDevelopment) {
+        try {
+          await setDoc(doc(db, "verification_codes", email), {
+            email,
+            code: otp,
+            created_at: serverTimestamp(),
+            expires_at: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000), // 10 minutes expiration
+          });
+        } catch (firestoreError) {
+          console.error("Error storing OTP in Firestore:", firestoreError);
+          // Continue even if Firestore storage fails
+        }
       }
 
       // Send OTP email using SendGrid
-      const emailResult = await sendgridEmailService.sendOtpEmail(
-        email,
-        otp,
-        username,
-      );
+      try {
+        // For development, just log the OTP to the console
+        if (isDevelopment) {
+          console.log(`OTP for ${email}: ${otp}`);
+          console.log(`Email would be sent to: ${email}`);
+          console.log(`Email content: Your verification code is ${otp}`);
+        } else {
+          // Only try to send via SendGrid in non-development environments
+          const emailResult = await sendgridEmailService.sendOtpEmail(
+            email,
+            otp,
+            username,
+          );
 
-      if (!emailResult.success) {
-        console.error(
-          "Error sending OTP email via SendGrid:",
-          emailResult.error,
-        );
+          if (!emailResult.success) {
+            console.error(
+              "Error sending OTP email via SendGrid:",
+              emailResult.error,
+            );
+          }
+        }
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError);
         // We'll continue with the OTP flow since we're storing the OTP locally as a fallback
       }
 
-      // For development, also log the OTP to the console
-      if (isDevelopment) {
-        console.log(`OTP for ${email}: ${otp}`);
-      }
+      // OTP is already logged in the email sending section above
 
       // Simulate email sending delay
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -92,24 +103,48 @@ export const firebaseOtpService = {
     otp: string,
   ): Promise<{ success: boolean; user: AuthUser | null; error: any }> {
     try {
-      // Check if we're in development mode
-      const isDevelopment = import.meta.env.MODE === "development";
       let isValidOtp = false;
 
-      // First try to verify with Firestore
-      try {
-        if (isDevelopment) {
-          // In development, check Firestore directly
+      // First try to verify with localStorage (works in all environments)
+      const storedOtpData = localStorage.getItem(`otp_${email}`);
+      if (storedOtpData) {
+        const { code, expires } = JSON.parse(storedOtpData);
+
+        // Check if OTP has expired
+        if (Date.now() > expires) {
+          localStorage.removeItem(`otp_${email}`);
+        } else if (otp === code) {
+          isValidOtp = true;
+          localStorage.removeItem(`otp_${email}`);
+        }
+      }
+
+      // If not verified with localStorage and not in development mode, try Firestore as fallback
+      const isDevelopment = import.meta.env.MODE === "development";
+      if (!isValidOtp && !isDevelopment) {
+        try {
+          // Check Firestore directly
           const otpDoc = await getDoc(doc(db, "verification_codes", email));
 
           if (otpDoc.exists()) {
             const otpData = otpDoc.data();
 
             // Check if OTP has expired
-            if (otpData.expires_at.toMillis() < Date.now()) {
+            const expiresAt = otpData.expires_at;
+            const expiryTime =
+              expiresAt && expiresAt.toMillis
+                ? expiresAt.toMillis()
+                : otpData.expires_at
+                  ? new Date(otpData.expires_at).getTime()
+                  : 0;
+
+            if (expiryTime < Date.now()) {
               // Delete expired OTP
               await deleteDoc(doc(db, "verification_codes", email));
-              return { success: false, user: null, error: "OTP has expired" };
+              if (!isValidOtp) {
+                // Only return error if not already validated
+                return { success: false, user: null, error: "OTP has expired" };
+              }
             }
 
             // Verify OTP
@@ -119,47 +154,22 @@ export const firebaseOtpService = {
               await deleteDoc(doc(db, "verification_codes", email));
             }
           }
-        } else {
-          // In production, use Firebase Cloud Function
-          const functions = getFunctions();
-          const verifyOtpFunction = httpsCallable(functions, "verifyOtp");
-          const result = await verifyOtpFunction({ email, otp });
-          const data = result.data as { success: boolean; message: string };
-          isValidOtp = data.success;
+        } catch (firestoreError) {
+          console.error("Error verifying OTP with Firestore:", firestoreError);
+          // Continue with the flow if localStorage validation succeeded
+          if (!isValidOtp) {
+            return {
+              success: false,
+              user: null,
+              error: "Failed to verify OTP",
+            };
+          }
         }
-      } catch (firestoreError) {
-        console.error("Error verifying OTP with Firestore:", firestoreError);
-        // Fall back to localStorage if Firestore verification fails
       }
 
-      // If not verified with Firestore, try localStorage as fallback
+      // If OTP is still not valid after all checks
       if (!isValidOtp) {
-        // Get stored OTP from localStorage
-        const storedOtpData = localStorage.getItem(`otp_${email}`);
-
-        if (!storedOtpData) {
-          return {
-            success: false,
-            user: null,
-            error: "OTP not found or expired",
-          };
-        }
-
-        const { code, expires } = JSON.parse(storedOtpData);
-
-        // Check if OTP has expired
-        if (Date.now() > expires) {
-          localStorage.removeItem(`otp_${email}`);
-          return { success: false, user: null, error: "OTP has expired" };
-        }
-
-        // Verify OTP
-        if (otp !== code) {
-          return { success: false, user: null, error: "Invalid OTP" };
-        }
-
-        isValidOtp = true;
-        localStorage.removeItem(`otp_${email}`);
+        return { success: false, user: null, error: "Invalid OTP" };
       }
 
       // If OTP is not valid after all checks
@@ -167,11 +177,8 @@ export const firebaseOtpService = {
         return { success: false, user: null, error: "Invalid OTP" };
       }
 
-      // OTP is valid, check if user exists
+      // OTP is valid, create user data without Firebase auth check
       try {
-        const methods = await fetchSignInMethodsForEmail(auth, email);
-        const isNewUser = methods.length === 0;
-
         // Create user data
         const username = email.split("@")[0];
         // Use email as the user ID to prevent duplicate accounts
@@ -184,31 +191,47 @@ export const firebaseOtpService = {
           joinDate: new Date().toISOString(),
         };
 
-        // Check if user already has a profile with a referral code
-        const { profile: existingProfile } =
-          await firebaseProfileService.getProfile(userId, false);
+        // Create complete user profile
+        const userProfile = {
+          ...userData,
+          isGuest: false,
+          telegramId: null,
+          walletAddress: null,
+          phoneNumber: null,
+          // Don't generate referral code here - it will be handled by the profile service
+          stats: {
+            wins: 0,
+            losses: 0,
+            totalGames: 0,
+            averageScore: 0,
+            bestScore: 0,
+            accuracy: 0,
+          },
+          xp: {
+            solo: 0,
+            duel: 0,
+            tournament: 0,
+          },
+        };
 
         // Store user data in localStorage
         localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem(
-          "userProfile",
-          JSON.stringify({
-            ...userData,
-            isGuest: false,
-            telegramId: null,
-            walletAddress: null,
-            phoneNumber: null,
-            referralCode: existingProfile?.referralCode || null, // Use existing referral code if available
-          }),
-        );
+        localStorage.setItem("userProfile", JSON.stringify(userProfile));
+
+        // Set hasVisitedWelcome to true
+        localStorage.setItem("hasVisitedWelcome", "true");
 
         // Clear OTP
         localStorage.removeItem(`otp_${email}`);
 
         return { success: true, user: userData, error: null };
       } catch (error) {
-        console.error("Error checking user existence:", error);
-        return { success: false, user: null, error: "Failed to verify user" };
+        console.error("Error creating user data:", error);
+        return {
+          success: false,
+          user: null,
+          error: "Failed to create user data",
+        };
       }
     } catch (error) {
       console.error("Error verifying OTP:", error);

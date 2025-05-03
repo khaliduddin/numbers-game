@@ -124,7 +124,7 @@ const LoginForm = ({
 
         if (profile) {
           // Store the complete user profile in localStorage
-          // Make sure to preserve the existing referral code
+          // Make sure to preserve the existing referral code and stats
           localStorage.setItem(
             "userProfile",
             JSON.stringify({
@@ -136,8 +136,21 @@ const LoginForm = ({
               phoneNumber: profile.phoneNumber,
               avatarUrl: profile.avatarUrl,
               joinDate: profile.joinDate,
-              referralCode: profile.referralCode, // Use existing referral code
+              referralCode: profile.referralCode, // Always use database referral code
               isGuest: false,
+              stats: profile.stats || {
+                wins: 0,
+                losses: 0,
+                totalGames: 0,
+                averageScore: 0,
+                bestScore: 0,
+                accuracy: 0,
+              },
+              xp: profile.xp || {
+                solo: 0,
+                duel: 0,
+                tournament: 0,
+              },
             }),
           );
         } else {
@@ -157,7 +170,7 @@ const LoginForm = ({
               telegramId: null,
               walletAddress: null,
               phoneNumber: null,
-              referralCode: generateReferralCode(), // Always generate a referral code
+              referralCode: generateReferralCode(), // Generate a referral code only for new users
             });
 
           if (newProfile) {

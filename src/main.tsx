@@ -37,8 +37,25 @@ TempoDevtools.init();
 import "./lib/firebase";
 import { useFirebaseEmulators } from "./lib/useFirebaseEmulators";
 
-// Connect to Firebase emulators in development mode
-useFirebaseEmulators();
+// Only connect to Firebase emulators in development mode if explicitly enabled
+const enableEmulators =
+  localStorage.getItem("enableFirebaseEmulators") === "true";
+if (enableEmulators) {
+  useFirebaseEmulators();
+} else {
+  console.log(
+    'Firebase emulators not enabled. Set localStorage.enableFirebaseEmulators = "true" to enable.',
+  );
+}
+
+// Add offline detection message
+window.addEventListener("offline", () => {
+  console.warn("⚠️ Application is offline. Some features may be limited.");
+});
+
+window.addEventListener("online", () => {
+  console.log("✅ Application is back online.");
+});
 
 const basename = import.meta.env.BASE_URL;
 
