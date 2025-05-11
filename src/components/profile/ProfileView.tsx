@@ -103,11 +103,18 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         if (savedProfile) {
           userData = JSON.parse(savedProfile);
 
-          // Sync with database to ensure we have the latest data
+          // Always sync with database to ensure we have the latest data
           if (userData.id) {
             const isGuest =
               userData.id === "00000000-0000-0000-0000-000000000000" ||
               (userData.id && userData.id.startsWith("guest_"));
+
+            console.log(
+              "Fetching profile from database for ID:",
+              userData.id,
+              "isGuest:",
+              isGuest,
+            );
 
             const { profile, error } = await unifiedProfileService.getProfile(
               userData.id,
@@ -115,6 +122,9 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
             );
 
             if (profile && !error) {
+              console.log("Profile fetched from database:", profile);
+              console.log("Database referral code:", profile.referralCode);
+
               // Update local storage with database values
               const syncedData = {
                 ...userData,
@@ -124,12 +134,14 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
               };
 
               console.log(
-                "Synced referral code from database:",
-                profile.referralCode,
+                "Synced user data with referral code:",
+                syncedData.referralCode,
               );
 
               localStorage.setItem("userProfile", JSON.stringify(syncedData));
               userData = syncedData;
+            } else {
+              console.warn("Failed to fetch profile from database:", error);
             }
           }
         } else {
@@ -248,13 +260,15 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
   const handleSaveProfile = async (updatedUser: any) => {
     // Save to Firebase using unified profile service first
     try {
+      // Determine if this is a guest user
+      const isGuest =
+        updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
+        updatedUser.id.startsWith("guest_");
+
+      // Force a database save by setting isForceUpdate to true
       const { profile, error } = await unifiedProfileService.saveProfile({
         id: updatedUser.id,
-        guestId:
-          updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
-          updatedUser.id.startsWith("guest_")
-            ? updatedUser.id
-            : undefined,
+        guestId: isGuest ? updatedUser.id : undefined,
         username: updatedUser.username,
         email: updatedUser.email,
         telegramId: updatedUser.telegramId,
@@ -262,13 +276,23 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         phoneNumber: updatedUser.phoneNumber,
         avatarUrl: updatedUser.avatarUrl,
         referralCode: updatedUser.referralCode, // Preserve existing referral code
-        isGuest:
-          updatedUser.id === "00000000-0000-0000-0000-000000000000" ||
-          updatedUser.id.startsWith("guest_"),
+        isGuest: isGuest,
+        isForceUpdate: true, // Force update to database
       });
 
       if (error) {
         console.error("Error saving profile to Firebase:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save profile to database",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+          duration: 3000,
+        });
       }
 
       // If profile was returned, update the user object with the database values
@@ -281,6 +305,11 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
           stats: profile.stats || updatedUser.stats,
           xp: profile.xp || updatedUser.xp,
         };
+
+        console.log(
+          "Profile saved to database with referral code:",
+          profile.referralCode,
+        );
 
         // Save the synced profile to localStorage
         localStorage.setItem("userProfile", JSON.stringify(syncedUser));
@@ -295,6 +324,11 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
       // Continue without Firebase integration if there's an error
       localStorage.setItem("userProfile", JSON.stringify(updatedUser));
       setUser(updatedUser);
+      toast({
+        title: "Error",
+        description: "Failed to save profile",
+        variant: "destructive",
+      });
     }
   };
 
@@ -341,25 +375,24 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
               </Button>
             </div>
           )}
-        </div>
-
-        <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-8 w-full md:w-auto"
-          >
-            <Share2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            Share
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-8 w-full md:w-auto"
-          >
-            <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            Settings
-          </Button>
+          <div className="flex gap-2 mt-2 md:mt-2 w-full md:w-auto justify-center md:justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 w-full md:w-auto"
+            >
+              <Share2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              Share
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 w-full md:w-auto"
+            >
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
       </div>
 

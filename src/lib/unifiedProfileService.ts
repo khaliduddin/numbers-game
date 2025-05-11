@@ -72,9 +72,13 @@ export const unifiedProfileService = {
 
   // Save or update profile
   async saveProfile(
-    profile: Partial<UnifiedProfile>,
+    profile: Partial<UnifiedProfile> & { isForceUpdate?: boolean },
   ): Promise<{ profile: UnifiedProfile | null; error: any }> {
     try {
+      // Extract isForceUpdate flag and remove it from profile object
+      const isForceUpdate = profile.isForceUpdate;
+      delete profile.isForceUpdate;
+
       // Ensure no undefined values are sent to Firestore
       Object.keys(profile).forEach((key) => {
         if (profile[key as keyof Partial<UnifiedProfile>] === undefined) {
@@ -99,8 +103,9 @@ export const unifiedProfileService = {
         localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
       }
 
-      // Only try Firebase if we're online
-      if (navigator.onLine) {
+      // Always try Firebase if isForceUpdate is true, otherwise only if online
+      if (isForceUpdate || navigator.onLine) {
+        console.log("Saving profile to Firebase database");
         return firebaseProfileService.saveProfile(profile);
       } else {
         console.warn("Device is offline, profile saved locally only");

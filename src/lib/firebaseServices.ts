@@ -146,6 +146,9 @@ export const firebaseAuthService = {
 export const firebaseProfileService = {
   async getProfile(id: string, isGuest: boolean = false) {
     try {
+      console.log(
+        `Firebase getProfile called with id: ${id}, isGuest: ${isGuest}`,
+      );
       let profileDoc;
 
       if (isGuest) {
@@ -154,39 +157,50 @@ export const firebaseProfileService = {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
+          console.log(`No profile found for guest ID: ${id}`);
           return { profile: null, error: null };
         }
 
         profileDoc = querySnapshot.docs[0];
+        console.log(`Found guest profile with ID: ${profileDoc.id}`);
       } else {
         // For authenticated users, get by document ID
         profileDoc = await getDoc(doc(db, "profiles", id));
 
         if (!profileDoc.exists()) {
+          console.log(`No profile found for user ID: ${id}`);
           return { profile: null, error: null };
         }
+        console.log(`Found user profile with ID: ${id}`);
       }
 
       const data = profileDoc.data();
+      console.log(`Profile data retrieved:`, data);
+
+      const profile = {
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        telegramId: data.telegramId,
+        walletAddress: data.walletAddress,
+        phoneNumber: data.phoneNumber,
+        avatarUrl: data.avatarUrl,
+        joinDate: data.joinDate,
+        lastLogin: data.lastLogin,
+        loginCount: data.loginCount,
+        referralCode: data.referralCode,
+        isGuest: data.isGuest,
+        guestId: data.guestId,
+        stats: data.stats,
+        xp: data.xp || { solo: 0, duel: 0, tournament: 0 },
+      };
+
+      console.log(
+        `Returning profile with referral code: ${profile.referralCode}`,
+      );
 
       return {
-        profile: {
-          id: data.id,
-          username: data.username,
-          email: data.email,
-          telegramId: data.telegramId,
-          walletAddress: data.walletAddress,
-          phoneNumber: data.phoneNumber,
-          avatarUrl: data.avatarUrl,
-          joinDate: data.joinDate,
-          lastLogin: data.lastLogin,
-          loginCount: data.loginCount,
-          referralCode: data.referralCode,
-          isGuest: data.isGuest,
-          guestId: data.guestId,
-          stats: data.stats,
-          xp: data.xp || { solo: 0, duel: 0, tournament: 0 },
-        },
+        profile,
         error: null,
       };
     } catch (error) {
