@@ -209,6 +209,60 @@ export const firebaseProfileService = {
     }
   },
 
+  async getProfileByTelegramId(telegramId: string) {
+    try {
+      console.log(
+        `Firebase getProfileByTelegramId called with telegramId: ${telegramId}`,
+      );
+
+      // Query profiles by telegramId field
+      const q = query(
+        collection(db, "profiles"),
+        where("telegramId", "==", telegramId),
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.log(`No profile found for Telegram ID: ${telegramId}`);
+        return { profile: null, error: null };
+      }
+
+      const profileDoc = querySnapshot.docs[0];
+      console.log(
+        `Found profile with Telegram ID: ${telegramId}, profile ID: ${profileDoc.id}`,
+      );
+
+      const data = profileDoc.data();
+      console.log(`Profile data retrieved:`, data);
+
+      const profile = {
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        telegramId: data.telegramId,
+        walletAddress: data.walletAddress,
+        phoneNumber: data.phoneNumber,
+        avatarUrl: data.avatarUrl,
+        joinDate: data.joinDate,
+        lastLogin: data.lastLogin,
+        loginCount: data.loginCount,
+        referralCode: data.referralCode,
+        isGuest: data.isGuest,
+        guestId: data.guestId,
+        stats: data.stats,
+        xp: data.xp || { solo: 0, duel: 0, tournament: 0 },
+      };
+
+      return {
+        profile,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error fetching profile by Telegram ID:", error);
+      return { profile: null, error };
+    }
+  },
+
   async saveProfile(profile: any) {
     try {
       const isGuest = profile.isGuest || false;

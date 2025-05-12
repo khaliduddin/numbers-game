@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import GameModeCard from "./GameModeCard";
 import { Button } from "./ui/button";
 import { User, Trophy, BarChart, LogOut } from "lucide-react";
+import { telegramAuth } from "@/lib/telegramAuth";
 
 interface MainMenuProps {
   username?: string;
@@ -14,6 +15,8 @@ const MainMenu = ({
   isWalletConnected = false,
 }: MainMenuProps) => {
   const navigate = useNavigate();
+  const isTelegramApp = telegramAuth.isRunningInTelegram();
+  const telegramUser = telegramAuth.getTelegramUser();
 
   const handleGameModeSelect = (mode: string) => {
     // Instead of navigating to routes, we'll update the state in the parent component
@@ -51,6 +54,18 @@ const MainMenu = ({
     }
   };
 
+  // Get display name from stored profile or Telegram data
+  const storedProfile = localStorage.getItem("userProfile");
+  const userProfile = storedProfile ? JSON.parse(storedProfile) : null;
+
+  // Use profile username from database if available, otherwise use Telegram data directly
+  const displayName =
+    userProfile?.username ||
+    (isTelegramApp && telegramUser
+      ? telegramUser.username ||
+        `${telegramUser.first_name} ${telegramUser.last_name || ""}`.trim()
+      : username);
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -64,7 +79,12 @@ const MainMenu = ({
               (alpha 1.0)
             </p>
             <p className="text-muted-foreground text-center sm:text-left">
-              Welcome back, {username}!
+              Welcome back, {displayName}!
+              {isTelegramApp && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  Telegram
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2 sm:gap-4 w-full sm:w-auto justify-center sm:justify-end">
@@ -102,24 +122,7 @@ const MainMenu = ({
               <Trophy size={16} className="sm:hidden" />
               Leaderboard
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                const event = new CustomEvent("changeView", {
-                  detail: { view: "signout" },
-                  bubbles: true,
-                  cancelable: true,
-                });
-                document.dispatchEvent(event);
-                console.log("Dispatched sign out event");
-              }}
-              className="flex items-center gap-1 sm:gap-2"
-              size="sm"
-            >
-              <LogOut size={18} className="hidden sm:inline" />
-              <LogOut size={16} className="sm:hidden" />
-              Sign Out
-            </Button>
+            {/* Sign out button removed */}
           </div>
         </header>
 
@@ -205,30 +208,38 @@ const MainMenu = ({
             </Button>
           </div>
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 flex justify-between items-center">
+            <div className="border rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h3 className="font-medium">Weekly Championship</h3>
                 <p className="text-sm text-muted-foreground">
                   Starts in 2 hours • 32 players
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div className="text-sm font-medium">Prize: 500 USDC</div>
-                <Button size="sm" disabled={!isWalletConnected}>
+                <Button
+                  size="sm"
+                  disabled={!isWalletConnected}
+                  className="w-full md:w-auto"
+                >
                   {isWalletConnected ? "Join" : "Connect Wallet to Join"}
                 </Button>
               </div>
             </div>
-            <div className="border rounded-lg p-4 flex justify-between items-center">
+            <div className="border rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h3 className="font-medium">Weekend Challenge</h3>
                 <p className="text-sm text-muted-foreground">
                   Starts in 1 day • 64 players
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div className="text-sm font-medium">Prize: 1000 USDC</div>
-                <Button size="sm" disabled={!isWalletConnected}>
+                <Button
+                  size="sm"
+                  disabled={!isWalletConnected}
+                  className="w-full md:w-auto"
+                >
                   {isWalletConnected ? "Join" : "Connect Wallet to Join"}
                 </Button>
               </div>

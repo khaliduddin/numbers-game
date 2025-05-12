@@ -46,6 +46,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@sendgrid/mail": "^8.1.5",
     "@supabase/supabase-js": "^2.45.6",
+    "@twa-dev/sdk": "^8.0.2",
     "@types/uuid": "^10.0.0",
     "appwrite": "^17.0.2",
     "class-variance-authority": "^0.7.0",

@@ -1,23 +1,54 @@
-import { Suspense, useState, useEffect, useContext } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
 import Home from "./components/home";
-import AuthContainer from "./components/auth/AuthContainer";
 import routes from "tempo-routes";
+import { telegramAuth } from "./lib/telegramAuth";
+import { toast } from "./components/ui/use-toast";
 
 function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Check if user exists in localStorage
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    // Skip welcome screen if user exists
-    if (user) {
-      setShowWelcome(false);
-    } else {
-      // Clean up any leftover flags if no user exists
-      localStorage.removeItem("hasVisitedWelcome");
-      localStorage.removeItem("showAuth");
-    }
+    const initializeApp = async () => {
+      try {
+        // Check if running in Telegram first
+        const isTelegram = telegramAuth.isRunningInTelegram();
+        console.log("Is running in Telegram:", isTelegram);
+
+        if (isTelegram) {
+          const telegramUser = telegramAuth.getTelegramUser();
+          console.log("Telegram user data:", telegramUser);
+        }
+
+        // Initialize user profile (either Telegram or guest)
+        const { profile, isNewUser } =
+          await telegramAuth.initializeUserProfile();
+
+        if (profile) {
+          console.log("Profile initialized:", profile);
+          setUserProfile(profile);
+
+          // Store user in localStorage
+          localStorage.setItem("user", JSON.stringify(profile));
+
+          // Show welcome toast for new Telegram users
+          if (isTelegram && isNewUser) {
+            toast({
+              title: "Welcome to Number Master!",
+              description: "Your Telegram profile has been connected.",
+              duration: 5000,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing app:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeApp();
   }, []);
 
   // Listen for sign out event
@@ -31,7 +62,13 @@ function App() {
           localStorage.removeItem("showAuth");
           // Keep hasVisitedWelcome so they don't have to go through welcome again
           // unless they want to switch accounts
-          setShowWelcome(true);
+          setUserProfile(null);
+
+          // Create a guest profile
+          telegramAuth.createGuestProfile().then(({ profile }) => {
+            setUserProfile(profile);
+            localStorage.setItem("user", JSON.stringify(profile));
+          });
         }
         // Explicitly return undefined to avoid Promise issues
         return undefined;
@@ -51,24 +88,13 @@ function App() {
     };
   }, []);
 
-  const handleGuestLogin = () => {
-    // Create a basic guest user in localStorage
-    const guestUser = {
-      username: "Guest",
-      isGuest: true,
-      lastLogin: new Date().toISOString(),
-      guestId: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    };
-    localStorage.setItem("user", JSON.stringify(guestUser));
-    setShowWelcome(false);
-  };
-
-  const handleSignInClick = () => {
-    // No need to set hasVisitedWelcome anymore
-    setShowWelcome(false);
-    // The Home component will show the auth screen
-    localStorage.setItem("showAuth", "false");
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Call useRoutes hook unconditionally to maintain hook order
   const tempoRoutes =
@@ -76,24 +102,16 @@ function App() {
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
-      {showWelcome ? (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 p-4">
-          <AuthContainer
-            onGuestLogin={handleGuestLogin}
-            onLogin={() => handleSignInClick()}
-            onSignup={() => handleSignInClick()}
-            showWelcomeTitle={true}
-            defaultTab="login"
-          />
+      {telegramAuth.isRunningInTelegram() && (
+        <div className="bg-primary/10 py-2 px-4 text-center text-sm">
+          <span className="font-medium">Telegram Mini App</span>
+          {userProfile?.username && (
+            <span className="ml-2">- Welcome, {userProfile.username}!</span>
+          )}
         </div>
-      ) : (
-        <>
-          <Routes>
-            <Route path="/*" element={<Home />} />
-          </Routes>
-          {tempoRoutes}
-        </>
       )}
+      <Home />
+      {tempoRoutes}
     </Suspense>
   );
 }

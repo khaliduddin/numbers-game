@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
+// Import Telegram Web App SDK
+import WebApp from "@twa-dev/sdk";
 
 // Configure environment-based logging
 const APP_ENV = import.meta.env.MODE || "development";
@@ -56,6 +58,24 @@ window.addEventListener("offline", () => {
 window.addEventListener("online", () => {
   console.log("✅ Application is back online.");
 });
+
+// Initialize Telegram Web App if available
+try {
+  // This will throw an error if not running in Telegram
+  if (WebApp.initDataUnsafe) {
+    // Set viewport correctly for Telegram Mini App
+    WebApp.ready();
+    WebApp.expand();
+
+    // Log Telegram initialization
+    console.log("Telegram Web App initialized");
+    if (WebApp.initDataUnsafe.user) {
+      console.log("Telegram user:", WebApp.initDataUnsafe.user);
+    }
+  }
+} catch (e) {
+  console.log("Not running as Telegram Mini App");
+}
 
 const basename = import.meta.env.BASE_URL;
 

@@ -139,6 +139,24 @@ export const unifiedProfileService = {
     return { profile: null, error: null };
   },
 
+  // Get profile by Telegram ID
+  async getProfileByTelegramId(
+    telegramId: string,
+  ): Promise<{ profile: UnifiedProfile | null; error: any }> {
+    try {
+      // Only try Firebase if we're online
+      if (navigator.onLine) {
+        return firebaseProfileService.getProfileByTelegramId(telegramId);
+      } else {
+        console.warn("Device is offline, using local profile data only");
+        return { profile: null, error: "Device is offline" };
+      }
+    } catch (error) {
+      console.error("Error in getProfileByTelegramId:", error);
+      return { profile: null, error };
+    }
+  },
+
   // Update user stats
   async updateStats(
     userId: string,
