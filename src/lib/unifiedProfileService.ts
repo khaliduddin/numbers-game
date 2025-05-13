@@ -97,6 +97,9 @@ export const unifiedProfileService = {
           ...profile,
           // Always keep existing referral code unless explicitly provided
           referralCode: profile.referralCode || currentProfile.referralCode,
+          // Keep existing referredByCode unless explicitly provided
+          referredByCode:
+            profile.referredByCode || currentProfile.referredByCode,
           // Preserve nested objects if they exist in current profile but not in the update
           stats: profile.stats || currentProfile.stats,
           xp: profile.xp || currentProfile.xp,
