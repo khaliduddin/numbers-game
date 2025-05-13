@@ -170,6 +170,7 @@ interface ProfileFormProps {
     walletAddress?: string;
     phoneNumber?: string;
     referralCode?: string;
+    referredByCode?: string;
   };
   onSaveProfile: (updatedUser: any) => void;
 }
@@ -181,6 +182,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
   const [isEditingTelegramId, setIsEditingTelegramId] = useState(false);
   const [isEditingWalletAddress, setIsEditingWalletAddress] = useState(false);
   const [isEditingPhoneNumber, setIsEditingPhoneNumber] = useState(false);
+  const [isEditingReferredBy, setIsEditingReferredBy] = useState(false);
 
   // State for edited values
   const [editedUsername, setEditedUsername] = useState(user.username || "");
@@ -193,6 +195,9 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
   );
   const [editedPhoneNumber, setEditedPhoneNumber] = useState(
     user.phoneNumber || "",
+  );
+  const [editedReferredBy, setEditedReferredBy] = useState(
+    user.referredByCode || "",
   );
 
   // State for saving status
@@ -358,6 +363,63 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
     }
   };
 
+  // Handle saving referred by code
+  const handleSaveReferredBy = async () => {
+    if (editedReferredBy === user.referredByCode) {
+      setIsEditingReferredBy(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Validation: Cannot be empty
+      if (!editedReferredBy.trim()) {
+        setIsEditingReferredBy(false);
+        return;
+      }
+
+      // Validation: Cannot be own referral code
+      if (editedReferredBy === user.referralCode) {
+        setSaveError("You cannot enter your own referral code");
+        setIsSaving(false);
+        return;
+      }
+
+      // Validation: Must be a valid referral code in the database
+      try {
+        const { profile: referrerProfile, error } =
+          await unifiedProfileService.getProfileByReferralCode(
+            editedReferredBy,
+          );
+
+        if (error || !referrerProfile) {
+          setSaveError("Invalid referral code. Please check and try again.");
+          setIsSaving(false);
+          return;
+        }
+
+        // Valid referral code, update user
+        const updatedUser = {
+          ...user,
+          referredByCode: editedReferredBy,
+        };
+
+        onSaveProfile(updatedUser);
+        setIsEditingReferredBy(false);
+      } catch (validationErr) {
+        console.error("Error validating referral code:", validationErr);
+        setSaveError("Error validating referral code");
+      }
+    } catch (err) {
+      console.error("Error in handleSaveReferredBy:", err);
+      setSaveError("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="flex-1 text-center md:text-left">
       <div className="flex flex-col md:flex-row md:items-center gap-1 sm:gap-2 md:gap-4 justify-center md:justify-start">
@@ -451,7 +513,28 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
         }}
         onSave={handleSavePhoneNumber}
         onChange={setEditedPhoneNumber}
-      />      
+      />
+
+      {/* Referred By Field */}
+      <ProfileField
+        label="Referred By"
+        value={user.referredByCode || ""}
+        placeholder="Enter referral code"
+        isEditing={isEditingReferredBy}
+        editedValue={editedReferredBy}
+        isSaving={isSaving}
+        onEdit={() => {
+          setIsEditingReferredBy(true);
+          setSaveError(null);
+        }}
+        onCancel={() => {
+          setIsEditingReferredBy(false);
+          setEditedReferredBy(user.referredByCode || "");
+          setSaveError(null);
+        }}
+        onSave={handleSaveReferredBy}
+        onChange={setEditedReferredBy}
+      />
 
       {/* Referral Code Display */}
       {/* {user.referralCode && (

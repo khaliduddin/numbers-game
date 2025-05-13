@@ -12,6 +12,7 @@ export interface UnifiedProfile {
   lastLogin?: string;
   loginCount?: number;
   referralCode?: string;
+  referredByCode?: string;
   isGuest: boolean;
   guestId?: string;
   stats?: {
@@ -137,6 +138,24 @@ export const unifiedProfileService = {
     // This would need to be implemented with Firebase
     // For now, we'll return null
     return { profile: null, error: null };
+  },
+
+  // Get profile by referral code
+  async getProfileByReferralCode(
+    referralCode: string,
+  ): Promise<{ profile: UnifiedProfile | null; error: any }> {
+    try {
+      // Only try Firebase if we're online
+      if (navigator.onLine) {
+        return firebaseProfileService.getProfileByReferralCode(referralCode);
+      } else {
+        console.warn("Device is offline, using local profile data only");
+        return { profile: null, error: "Device is offline" };
+      }
+    } catch (error) {
+      console.error("Error in getProfileByReferralCode:", error);
+      return { profile: null, error };
+    }
   },
 
   // Get profile by Telegram ID

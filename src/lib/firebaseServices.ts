@@ -189,6 +189,7 @@ export const firebaseProfileService = {
         lastLogin: data.lastLogin,
         loginCount: data.loginCount,
         referralCode: data.referralCode,
+        referredByCode: data.referredByCode,
         isGuest: data.isGuest,
         guestId: data.guestId,
         stats: data.stats,
@@ -247,6 +248,7 @@ export const firebaseProfileService = {
         lastLogin: data.lastLogin,
         loginCount: data.loginCount,
         referralCode: data.referralCode,
+        referredByCode: data.referredByCode,
         isGuest: data.isGuest,
         guestId: data.guestId,
         stats: data.stats,
@@ -259,6 +261,31 @@ export const firebaseProfileService = {
       };
     } catch (error) {
       console.error("Error fetching profile by Telegram ID:", error);
+      return { profile: null, error };
+    }
+  },
+
+  async getProfileByReferralCode(referralCode: string) {
+    if (!referralCode) {
+      return { profile: null, error: "No referral code provided" };
+    }
+
+    try {
+      const q = query(
+        collection(db, "profiles"),
+        where("referralCode", "==", referralCode),
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return { profile: null, error: null };
+      }
+
+      const data = querySnapshot.docs[0].data();
+
+      return { profile: data, error: null };
+    } catch (error) {
+      console.error("Error finding profile with referral code:", error);
       return { profile: null, error };
     }
   },
@@ -349,6 +376,7 @@ export const firebaseProfileService = {
         lastLogin: currentTime,
         loginCount: profile.loginCount || 1,
         referralCode: profile.referralCode || null,
+        referredByCode: profile.referredByCode || null,
         isGuest: isGuest,
         guestId: profile.guestId || null,
         stats: profile.stats || {
@@ -383,6 +411,7 @@ export const firebaseProfileService = {
           lastLogin: profileData.lastLogin,
           loginCount: profileData.loginCount,
           referralCode: profileData.referralCode,
+          referredByCode: profileData.referredByCode,
           isGuest: profileData.isGuest,
           guestId: profileData.guestId,
           stats: profileData.stats,
