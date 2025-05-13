@@ -14,7 +14,7 @@ const MainMenu = ({
   username = "Player",
   isWalletConnected = false,
 }: MainMenuProps) => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const isTelegramApp = telegramAuth.isRunningInTelegram();
   const telegramUser = telegramAuth.getTelegramUser();
 
@@ -73,7 +73,7 @@ const MainMenu = ({
         <header className="flex flex-col sm:flex-row justify-between items-center mb-12 gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-primary text-center sm:text-left">
-              Number Master
+              Math Ladders
             </h1>
             <p className="text-muted-foreground text-center sm:text-left">
               (alpha 1.0)

@@ -104,10 +104,8 @@ function App() {
     <Suspense fallback={<p>Loading...</p>}>
       {telegramAuth.isRunningInTelegram() && (
         <div className="bg-primary/10 py-2 px-4 text-center text-sm">
-          <span className="font-medium">Telegram Mini App</span>
-          {userProfile?.username && (
-            <span className="ml-2">- Welcome, {userProfile.username}!</span>
-          )}
+          <span className="font-medium">Announcements || </span>          
+          <span className="ml-2">Watch this space</span>          
         </div>
       )}
       <Home />

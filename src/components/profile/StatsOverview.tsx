@@ -20,6 +20,7 @@ import {
 import { gameStatsService, GameRecord } from "@/lib/gameStatsService";
 import { supabase } from "@/lib/supabase";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
+import { firebaseProfileService } from "@/lib/firebaseServices";
 
 interface StatsOverviewProps {
   stats?: {
@@ -105,11 +106,13 @@ const StatsOverview = ({
   const fetchUserProfile = async () => {
     if (!userId && !guestId) return;
 
-    try {
-      const { profile, error } = await unifiedProfileService.getProfile(
+    try {      
+      const { profile, error } = await firebaseProfileService.getProfile(
         userId || guestId || "",
         !!guestId,
       );
+
+      // console.log('profileprofile', profile)
 
       if (error || !profile) {
         console.error("Error fetching user profile:", error);
@@ -135,6 +138,7 @@ const StatsOverview = ({
           console.log("Updated game stats:", updatedStats);
           return updatedStats;
         });
+        console.log("Updated game statsxxxxx:", gameStats);
       }
     } catch (error) {
       console.error("Error in fetchUserProfile:", error);
@@ -303,7 +307,7 @@ const StatsOverview = ({
       bestScore: displayStats.bestScore || 0,
       fastestTime: displayStats.fastestTime || "N/A",
       accuracy: displayStats.accuracy || 0,
-      xp: displayStats.xp || { solo: 0, duel: 0, tournament: 0 },
+      xp: gameStats ? gameStats.xp : { solo: 0, duel: 0, tournament: 0 },
     };
 
     const commonCards = [
@@ -465,6 +469,8 @@ function getXpForGameMode(
   xp: { solo: number; duel: number; tournament: number } | undefined,
   gameMode: string,
 ): number {
+  console.log('game mode', gameMode)
+  console.log('gamestats xp', xp)
   if (!xp) return 0;
 
   switch (gameMode.toLowerCase()) {

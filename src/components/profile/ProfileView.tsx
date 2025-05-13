@@ -375,7 +375,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
               </Button>
             </div>
           )}
-          <div className="flex gap-2 mt-2 md:mt-2 w-full md:w-auto justify-center md:justify-start">
+          {/* <div className="flex gap-2 mt-2 md:mt-2 w-full md:w-auto justify-center md:justify-start">
             <Button
               variant="outline"
               size="sm"
@@ -392,7 +392,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
               <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Settings
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
 

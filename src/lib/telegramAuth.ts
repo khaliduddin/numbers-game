@@ -18,7 +18,8 @@ export const telegramAuth = {
    */
   isRunningInTelegram(): boolean {
     try {
-      return WebApp.initDataUnsafe.query_id !== undefined;
+      // console.log('test1', WebApp.initDataUnsafe)
+      return WebApp.initDataUnsafe.user !== undefined;
     } catch (e) {
       return false;
     }

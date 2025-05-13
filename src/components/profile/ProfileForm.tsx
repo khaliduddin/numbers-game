@@ -451,10 +451,10 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
         }}
         onSave={handleSavePhoneNumber}
         onChange={setEditedPhoneNumber}
-      />
+      />      
 
       {/* Referral Code Display */}
-      {user.referralCode && (
+      {/* {user.referralCode && (
         <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">Your Referral Link:</span>
@@ -482,15 +482,15 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSaveProfile }) => {
             </p>
           </div>
         </div>
-      )}
+      )} */}
 
-      {!user.referralCode && (user.email || user.telegramId) && (
+      {/* {!user.referralCode && (user.email || user.telegramId) && (
         <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20">
           <p className="text-xs text-muted-foreground">
             Your referral code will be generated after your profile is saved.
           </p>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
