@@ -96,16 +96,17 @@ function App() {
     );
   }
 
-  // Call useRoutes hook unconditionally to maintain hook order
-  const tempoRoutes =
-    import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
+  // Always call useRoutes hook to maintain consistent hook order
+  const tempoRoutes = useRoutes(
+    import.meta.env.VITE_TEMPO === "true" ? routes : [],
+  );
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
       {telegramAuth.isRunningInTelegram() && (
         <div className="bg-primary/10 py-2 px-4 text-center text-sm">
-          <span className="font-medium">Announcements || </span>          
-          <span className="ml-2">Watch this space</span>          
+          <span className="font-medium">Announcements || </span>
+          <span className="ml-2">Watch this space</span>
         </div>
       )}
       <Home />

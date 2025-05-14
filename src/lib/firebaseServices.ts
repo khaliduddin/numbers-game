@@ -376,7 +376,7 @@ export const firebaseProfileService = {
         lastLogin: currentTime,
         loginCount: profile.loginCount || 1,
         referralCode: profile.referralCode || null,
-        referredByCode: profile.referredByCode || null,
+        referredByCode: profile.referredByCode || null, // Ensure referredByCode is included
         isGuest: isGuest,
         guestId: profile.guestId || null,
         stats: profile.stats || {
@@ -411,7 +411,7 @@ export const firebaseProfileService = {
           lastLogin: profileData.lastLogin,
           loginCount: profileData.loginCount,
           referralCode: profileData.referralCode,
-          referredByCode: profileData.referredByCode,
+          referredByCode: profileData.referredByCode, // Ensure referredByCode is returned
           isGuest: profileData.isGuest,
           guestId: profileData.guestId,
           stats: profileData.stats,

@@ -278,6 +278,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         phoneNumber: updatedUser.phoneNumber,
         avatarUrl: updatedUser.avatarUrl,
         referralCode: updatedUser.referralCode, // Preserve existing referral code
+        referredByCode: updatedUser.referredByCode, // Include referredByCode when saving
         referredByCode: updatedUser.referredByCode,
         isGuest: isGuest,
         isForceUpdate: true, // Force update to database
@@ -304,7 +305,6 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         const syncedUser = {
           ...updatedUser,
           referralCode: profile.referralCode, // Always use database version
-          referredByCode: updatedUser.referredByCode,
           joinDate: profile.joinDate || updatedUser.joinDate,
           stats: profile.stats || updatedUser.stats,
           xp: profile.xp || updatedUser.xp,
