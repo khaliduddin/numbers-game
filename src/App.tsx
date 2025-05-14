@@ -1,4 +1,4 @@
-import { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useContext } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
 import Home from "./components/home";
 import routes from "tempo-routes";
@@ -8,6 +8,10 @@ import { toast } from "./components/ui/use-toast";
 function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Always call useContext to maintain hook order consistency
+  // This ensures the hook order remains the same across all renders
+  useContext(React.createContext(null));
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -97,9 +101,8 @@ function App() {
   }
 
   // Always call useRoutes hook to maintain consistent hook order
-  const tempoRoutes = useRoutes(
-    import.meta.env.VITE_TEMPO === "true" ? routes : [],
-  );
+  // We need to call useRoutes unconditionally to avoid hook order violations
+  const tempoRoutes = useRoutes(routes);
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
@@ -110,7 +113,7 @@ function App() {
         </div>
       )}
       <Home />
-      {tempoRoutes}
+      {import.meta.env.VITE_TEMPO === "true" && tempoRoutes}
     </Suspense>
   );
 }
