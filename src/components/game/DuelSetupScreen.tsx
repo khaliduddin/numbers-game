@@ -87,9 +87,10 @@ const DuelSetupScreen: React.FC<DuelSetupScreenProps> = ({
                 <p className="text-muted-foreground mb-4">
                   Join an existing game from the waiting queue
                 </p>
-                <Button onClick={onJoinGame} className="w-full">
+                <Button onClick={onJoinGame} className="w-full" disabled>
                   Find Opponent
                 </Button>
+                <p className="text-xs">Coming soon</p>
               </div>
             </TabsContent>
 
@@ -165,11 +166,12 @@ const DuelSetupScreen: React.FC<DuelSetupScreenProps> = ({
                   )}
                 </div>
 
-                <Button onClick={handleCreateGame} className="w-full">
+                <Button onClick={handleCreateGame} className="w-full" disabled>
                   {isPrivateGame
                     ? "Create & Invite Friend"
                     : "Create Public Game"}
                 </Button>
+                <p className="text-xs">Coming soon</p>
               </div>
             </TabsContent>
           </Tabs>

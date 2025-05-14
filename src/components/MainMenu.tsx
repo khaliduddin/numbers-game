@@ -117,6 +117,7 @@ const MainMenu = ({
               }}
               className="flex items-center gap-1 sm:gap-2"
               size="sm"
+              disabled
             >
               <Trophy size={18} className="hidden sm:inline" />
               <Trophy size={16} className="sm:hidden" />
@@ -203,6 +204,7 @@ const MainMenu = ({
                 document.dispatchEvent(event);
               }}
               size="sm"
+              disabled
             >
               View All
             </Button>

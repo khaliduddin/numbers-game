@@ -26,6 +26,7 @@ interface ProfileViewProps {
     phoneNumber?: string;
     achievements?: Achievement[];
     referralCode?: string;
+    referredByCode?: string;
   };
 }
 
@@ -129,6 +130,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
               const syncedData = {
                 ...userData,
                 referralCode: profile.referralCode, // Always use database version
+                referredByCode: profile.referredByCode,
                 stats: profile.stats || userData.stats,
                 xp: profile.xp || userData.xp,
               };
@@ -276,6 +278,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         phoneNumber: updatedUser.phoneNumber,
         avatarUrl: updatedUser.avatarUrl,
         referralCode: updatedUser.referralCode, // Preserve existing referral code
+        referredByCode: updatedUser.referredByCode,
         isGuest: isGuest,
         isForceUpdate: true, // Force update to database
       });
@@ -301,6 +304,7 @@ const ProfileView = ({ user: propUser }: ProfileViewProps) => {
         const syncedUser = {
           ...updatedUser,
           referralCode: profile.referralCode, // Always use database version
+          referredByCode: updatedUser.referredByCode,
           joinDate: profile.joinDate || updatedUser.joinDate,
           stats: profile.stats || updatedUser.stats,
           xp: profile.xp || updatedUser.xp,

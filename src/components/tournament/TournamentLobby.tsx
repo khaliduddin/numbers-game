@@ -104,10 +104,11 @@ const TournamentLobby = ({
               className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto"
               variant="outline"
               onClick={() => alert("Wallet connection would be triggered here")}
-              size="sm"
+              size="sm" disabled
             >
               <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
               Connect Wallet
+              <span className="text-xs">coming soon</span>
             </Button>
           ) : (
             <div className="flex items-center gap-1 sm:gap-2 bg-blue-50 text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm w-full sm:w-auto justify-center sm:justify-start">
