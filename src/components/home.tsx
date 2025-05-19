@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import MainMenu from "./MainMenu";
 import GameContainer from "./game/GameContainer";
@@ -8,11 +8,11 @@ import ProfileView from "./profile/ProfileView";
 import LeaderboardView from "./leaderboard/LeaderboardView";
 import TournamentLobby from "./tournament/TournamentLobby";
 import AuthContainer from "./auth/AuthContainer";
-import { supabase } from "@/lib/supabase";
+// import { supabase } from "@/lib/supabase";
 import { unifiedProfileService } from "@/lib/unifiedProfileService";
 
 const Home = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [username, setUsername] = useState("Guest");
   const [currentView, setCurrentView] = useState("main"); // main, game, profile, leaderboard, tournament, auth
@@ -240,6 +240,7 @@ const Home = () => {
   };
 
   const handleAuthSuccess = (userData: any) => {
+    console.log('auth is success:: 1 ::', userData)
     // Save user data and navigate to main menu
     localStorage.setItem("user", JSON.stringify(userData));
     setUsername(userData.username || "User");
