@@ -114,7 +114,7 @@ const NumberDisplay = ({
   }, [number, isAnimated, isRevealed]);
 
   // Determine what to display - ensure we always have a valid value
-  const displayValue = displayNumber || getValidNumber(number);
+  const displayValue = displayNumber || getValidNumber(number) || "0";
 
   return (
     <div className="w-full bg-slate-900 p-4 sm:p-6 md:p-8 rounded-xl shadow-lg flex flex-col items-center justify-center">
