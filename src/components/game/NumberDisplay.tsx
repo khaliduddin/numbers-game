@@ -58,11 +58,18 @@ const NumberDisplay = ({
     };
   }, []);
 
+  // Debug log to help identify issues
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("NumberDisplay props:", { number, isAnimated, isRevealed });
+    }
+  }, [number, isAnimated, isRevealed]);
+
   useEffect(() => {
     // Clear any existing animation timeout
     clearAnimation();
 
-    // Get a valid number string
+    // Get a valid number string - ensure we have a valid string even in production
     const validNumber = getValidNumber(number);
 
     // Handle hidden numbers
@@ -106,7 +113,7 @@ const NumberDisplay = ({
     };
   }, [number, isAnimated, isRevealed]);
 
-  // Determine what to display
+  // Determine what to display - ensure we always have a valid value
   const displayValue = displayNumber || getValidNumber(number);
 
   return (

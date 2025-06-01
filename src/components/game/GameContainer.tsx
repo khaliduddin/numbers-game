@@ -368,7 +368,12 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Initialize first round
   useEffect(() => {
-    startNewRound();
+    // Ensure we have a valid number at the start
+    const initialNumber = generateRandomNumber();
+    setCurrentNumber(initialNumber);
+    setTimeRemaining(timePerRound);
+    setRoundBreak(false);
+    console.log(`Initial game setup with number: ${initialNumber}`);
   }, []);
 
   // If showing results screen
