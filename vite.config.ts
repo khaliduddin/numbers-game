@@ -2,29 +2,16 @@ import path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 
-const conditionalPlugins: [string, Record<string, any>][] = [];
-
-// @ts-ignore
-if (process.env.TEMPO === "true") {
-  conditionalPlugins.push(["tempo-devtools/swc", {}]);
-}
-
-// Dynamically import tempo plugin only when needed
-function loadTempoPlugin() {
-  try {
-    // @ts-ignore
-    if (process.env.TEMPO === "true") {
-      const { tempo } = require("tempo-devtools/dist/vite");
-      return tempo();
-    }
-    return null;
-  } catch (e) {
-    console.warn("Failed to load tempo plugin:", e);
-    return null;
+// Import tempo plugin directly
+let tempoPlugin = null;
+try {
+  if (process.env.TEMPO === "true") {
+    const { tempo } = require("tempo-devtools/dist/vite");
+    tempoPlugin = tempo();
   }
+} catch (e) {
+  console.warn("Failed to load tempo plugin:", e);
 }
-
-const tempoPlugin = loadTempoPlugin();
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -46,9 +33,7 @@ export default defineConfig({
     ),
   },
   plugins: [
-    react({
-      plugins: conditionalPlugins,
-    }),
+    react(),
     // Only add tempo plugin if it was loaded successfully
     tempoPlugin,
   ].filter(Boolean),
@@ -60,7 +45,7 @@ export default defineConfig({
   },
   server: {
     // @ts-ignore
-    allowedHosts: true,
+    allowedHosts: process.env.TEMPO === "true" ? true : undefined,
   },
   build: {
     sourcemap: true,

@@ -25,6 +25,9 @@ export const env = {
     | string
     | undefined,
 
+  // Tempo
+  VITE_TEMPO: import.meta.env.VITE_TEMPO as string | undefined,
+
   // App environment
   MODE: import.meta.env.MODE as string | undefined,
 };

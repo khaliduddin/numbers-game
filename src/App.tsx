@@ -1,9 +1,11 @@
 import React, { Suspense, useState, useEffect, useContext } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
 import Home from "./components/home";
-import routes from "tempo-routes";
 import { telegramAuth } from "./lib/telegramAuth";
 import { toast } from "./components/ui/use-toast";
+
+// Create an empty routes array as fallback when tempo-routes is not available
+let routes = [];
 
 function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -102,7 +104,8 @@ function App() {
 
   // Always call useRoutes hook to maintain consistent hook order
   // We need to call useRoutes unconditionally to avoid hook order violations
-  const tempoRoutes = useRoutes(routes);
+  const tempoRoutes =
+    import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
@@ -113,7 +116,12 @@ function App() {
         </div>
       )}
       <Home />
+      {/* For Tempo routes */}
       {import.meta.env.VITE_TEMPO === "true" && tempoRoutes}
+      {/* Add this before any catchall route if you have one */}
+      <Routes>
+        {import.meta.env.VITE_TEMPO === "true" && <Route path="/tempobook/*" />}
+      </Routes>
     </Suspense>
   );
 }

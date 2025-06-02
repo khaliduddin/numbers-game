@@ -32,8 +32,26 @@ if (APP_ENV === "production" || APP_ENV === "preprod") {
   };
 }
 
-import { TempoDevtools } from "tempo-devtools";
-TempoDevtools.init();
+// Initialize Tempo Devtools if available
+if (import.meta.env.VITE_TEMPO === "true") {
+  try {
+    import("tempo-devtools")
+      .then((module) => {
+        const { TempoDevtools } = module;
+        if (TempoDevtools) {
+          TempoDevtools.init();
+          console.log("Tempo devtools initialized");
+        } else {
+          console.warn("TempoDevtools not found in the module");
+        }
+      })
+      .catch((error) => {
+        console.warn("Tempo devtools not available:", error);
+      });
+  } catch (error) {
+    console.warn("Tempo devtools not available:", error);
+  }
+}
 
 // Initialize Firebase with environment variables
 import "./lib/firebase";
