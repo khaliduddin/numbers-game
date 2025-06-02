@@ -59,7 +59,11 @@ const GameContainer: React.FC<GameContainerProps> = ({
       // Generate digits 1-9 only (no zeros)
       number += (Math.floor(Math.random() * 9) + 1).toString();
     }
-    return number || "7429"; // Ensure we always return a string, fallback to default if empty
+    // Ensure we always return a valid string, never undefined or empty
+    if (!number || number.length === 0) {
+      return "7429";
+    }
+    return number;
   };
 
   // Calculate the correct answer (digital root)
@@ -368,14 +372,9 @@ const GameContainer: React.FC<GameContainerProps> = ({
 
   // Initialize first round
   useEffect(() => {
-    // Ensure we have a valid number at the start
+    // Always generate a valid number at the start
     const initialNumber = generateRandomNumber();
-    if (!initialNumber || initialNumber === "") {
-      console.warn("Generated empty initial number, using fallback");
-      setCurrentNumber("7429"); // Fallback to default
-    } else {
-      setCurrentNumber(initialNumber);
-    }
+    setCurrentNumber(initialNumber);
     setTimeRemaining(timePerRound);
     setRoundBreak(false);
     console.log(`Initial game setup with number: ${initialNumber}`);
