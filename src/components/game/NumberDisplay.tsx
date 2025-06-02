@@ -41,12 +41,15 @@ const NumberDisplay = ({
   // Safely get a valid number string
   const getValidNumber = (input: string | undefined | null): string => {
     // If input is undefined, null, or not a string, return default
-    if (input === undefined || input === null || typeof input !== "string") {
+    if (input === undefined || input === null) {
       return "7429";
     }
 
+    // Convert to string if it's not already a string
+    const inputStr = typeof input === "string" ? input : String(input);
+
     // Remove any non-digit characters
-    const sanitized = input.replace(/[^0-9]/g, "");
+    const sanitized = inputStr.replace(/[^0-9]/g, "");
 
     // If sanitized is empty, return default
     return sanitized.length > 0 ? sanitized : "7429";
