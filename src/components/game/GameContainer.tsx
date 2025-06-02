@@ -60,15 +60,13 @@ const GameContainer: React.FC<GameContainerProps> = ({
       number += (Math.floor(Math.random() * 9) + 1).toString();
     }
     // Ensure we always return a valid string, never undefined or empty
-    if (!number || number.length === 0) {
-      return "7429";
-    }
-    return number;
+    return number && number.length > 0 ? number : "7429";
   };
 
   // Calculate the correct answer (digital root)
   const calculateDigitalRoot = (num: string): number => {
-    if (!num || num.length === 0) return 0;
+    // Ensure we have a valid string to work with
+    if (!num || typeof num !== "string" || num.length === 0) return 0;
     if (num.length === 1) return parseInt(num);
     const sum = num.split("").reduce((acc, digit) => acc + parseInt(digit), 0);
     return calculateDigitalRoot(sum.toString());
@@ -80,7 +78,6 @@ const GameContainer: React.FC<GameContainerProps> = ({
     setCurrentNumber(newNumber);
     setTimeRemaining(timePerRound);
     setRoundBreak(false);
-    console.log(`Starting round ${currentRound} with number: ${newNumber}`);
   };
 
   // Save game stats to database
@@ -173,10 +170,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
     // Update player score
     setPlayerScore((prev) => prev + roundScore);
 
-    // Log for debugging
-    console.log(
-      `Round ${currentRound}: Number ${currentNumber}, Answer: ${answer}, Correct: ${correctAnswer}, isCorrect: ${isCorrect}`,
-    );
+    // No need for debug logging in production
 
     // Save round details
     setRoundDetails((prev) => [
@@ -267,10 +261,7 @@ const GameContainer: React.FC<GameContainerProps> = ({
     // Update player score with skip penalty
     setPlayerScore(updatedPlayerScore);
 
-    // Log for debugging
-    console.log(
-      `Round ${currentRound}: Number ${currentNumber} SKIPPED, Correct answer was: ${correctAnswer}`,
-    );
+    // No need for debug logging in production
 
     // Create the current round details object
     const currentRoundDetails = {
@@ -377,7 +368,6 @@ const GameContainer: React.FC<GameContainerProps> = ({
     setCurrentNumber(initialNumber);
     setTimeRemaining(timePerRound);
     setRoundBreak(false);
-    console.log(`Initial game setup with number: ${initialNumber}`);
   }, []);
 
   // If showing results screen

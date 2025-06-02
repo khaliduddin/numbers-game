@@ -39,8 +39,8 @@ const NumberDisplay = ({
   };
 
   // Safely get a valid number string
-  const getValidNumber = (input: string | undefined): string => {
-    // If input is undefined or not a string, return default
+  const getValidNumber = (input: string | undefined | null): string => {
+    // If input is undefined, null, or not a string, return default
     if (input === undefined || input === null || typeof input !== "string") {
       return "7429";
     }
@@ -52,9 +52,8 @@ const NumberDisplay = ({
     return sanitized.length > 0 ? sanitized : "7429";
   };
 
-  // Animation effect to reveal the number digit by digit
+  // Set up cleanup on component unmount
   useEffect(() => {
-    // Set up cleanup on component unmount
     return () => {
       isMounted.current = false;
       clearAnimation();
