@@ -108,6 +108,8 @@ const NumberDisplay = ({
 
   // Always ensure we have a valid display value
   const displayValue = displayNumber || getValidNumber(number);
+  // Get a valid number for data attribute
+  const validNumberForData = getValidNumber(number);
 
   return (
     <div className="w-full bg-slate-900 p-4 sm:p-6 md:p-8 rounded-xl shadow-lg flex flex-col items-center justify-center">
@@ -120,7 +122,7 @@ const NumberDisplay = ({
         className={`font-mono ${sizeClasses[size]} text-white tracking-wider font-bold flex justify-center items-center min-h-16 sm:min-h-20 md:min-h-24 ${isAnimating ? "animate-pulse" : ""}`}
         aria-live="polite"
         data-testid="number-display"
-        data-number={validNumber}
+        data-number={validNumberForData}
         data-is-animating={isAnimating}
       >
         {displayValue}
