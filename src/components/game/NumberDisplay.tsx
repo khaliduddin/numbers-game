@@ -93,7 +93,9 @@ const NumberDisplay = ({
         }
 
         if (currentIndex < digits.length) {
-          setDisplayNumber((prev) => prev + digits[currentIndex]);
+          // Store all digits revealed so far instead of appending to previous state
+          // This prevents any undefined values from being included
+          setDisplayNumber(digits.slice(0, currentIndex + 1).join(""));
           currentIndex++;
         } else {
           clearAnimation();
@@ -111,7 +113,9 @@ const NumberDisplay = ({
   }, [number, isAnimated, isRevealed]);
 
   // Always ensure we have a valid display value
-  const displayValue = displayNumber || getValidNumber(number);
+  // Use empty string instead of undefined during animation
+  const displayValue =
+    displayNumber !== undefined ? displayNumber : getValidNumber(number);
   // Get a valid number for data attribute
   const validNumberForData = getValidNumber(number);
 
