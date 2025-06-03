@@ -3,11 +3,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 
 // Import tempo plugin directly
+import * as tempoDevtools from "tempo-devtools/dist/vite";
+
+// Initialize tempo plugin conditionally
 let tempoPlugin = null;
 try {
-  if (process.env.TEMPO === "true") {
-    const { tempo } = require("tempo-devtools/dist/vite");
-    tempoPlugin = tempo();
+  if (process.env.TEMPO === "true" && tempoDevtools) {
+    tempoPlugin = tempoDevtools.tempo();
   }
 } catch (e) {
   console.warn("Failed to load tempo plugin:", e);
@@ -52,6 +54,16 @@ export default defineConfig({
     rollupOptions: {
       // Ensure external dependencies are properly handled
       external: [/^tempo-devtools/],
+      // Disable sourcemap warnings for problematic dependencies
+      onwarn(warning, warn) {
+        if (
+          warning.code === "SOURCEMAP_ERROR" &&
+          warning.message.includes("framer-motion")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
     },
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 
 interface NumberDisplayProps {
-  number?: string;
+  number?: string | number;
   isAnimated?: boolean;
   size?: "small" | "medium" | "large";
   isRevealed?: boolean;
@@ -39,14 +39,16 @@ const NumberDisplay = ({
   };
 
   // Safely get a valid number string
-  const getValidNumber = (input: string | undefined | null): string => {
-    // If input is undefined, null, or not a string, return default
+  const getValidNumber = (
+    input: string | number | undefined | null,
+  ): string => {
+    // If input is undefined or null, return default
     if (input === undefined || input === null) {
       return "7429";
     }
 
     // Convert to string if it's not already a string
-    const inputStr = typeof input === "string" ? input : String(input);
+    const inputStr = String(input);
 
     // Remove any non-digit characters
     const sanitized = inputStr.replace(/[^0-9]/g, "");
